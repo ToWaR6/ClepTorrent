@@ -18,7 +18,7 @@ int main(int argc, char const *argv[]){
 	int dS = socket(AF_INET, SOCK_STREAM , 0) ;
 	if(dS == -1){
 		perror("socket() ");
-     	exit(-1);
+		exit(-1);
 	}
 	//Define socket and size
 	struct sockaddr_in sock; 
@@ -57,14 +57,19 @@ int main(int argc, char const *argv[]){
 	struct stat st;
 	if (stat(filename, &st) == 0)
 		tailleF = st.st_size;
-    else{
+	else{
 		perror("stat (size)");
 		close(dS);
 		fclose(fp);
 		exit(-1);
 	}
-    printf("%d\n",tailleF );
-	mySendFile(dS,fp,tailleF);
+	printf("%d\n",tailleF );
+	if(mySendFile(dS,fp,tailleF)==-1){
+		perror("mySendFile");
+		fclose(fp);
+		close(dS);
+		exit(-1);
+	}
 
 	fclose(fp);
 	if(close(dS)){

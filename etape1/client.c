@@ -5,12 +5,19 @@
 #include <arpa/inet.h> //htons, inet_pton
 #include <unistd.h> //close
 #include <errno.h>
-
-int mySend(int sockfd,const void *buf,size_t len){
+#include <sys/stat.h>//Taille fichier entre autre
+int mySend(int sockfd,FILE *fp,size_t len){
 	int snd =0;
 	int tmp = 0;
 	int rest= len;
-	char *ptr = (char*) buf;
+	char ptr[1024];
+	int indexPtr = 0;
+	char actualChar;
+	do{
+		actualChar = fgetc(fp); // On lit le caractère
+		ptr[indexPtr]=actualChar; // On l'affiche
+    } while (actualChar != EOF);
+
 	while(snd<len){
 		tmp= send(sockfd,&ptr[snd],rest,0);
 		if(snd==-1){
@@ -19,6 +26,10 @@ int mySend(int sockfd,const void *buf,size_t len){
 		}else{
 			snd+=tmp;
 			rest-=tmp;
+			do{
+				actualChar = fgetc(fp); // On lit le caractère
+				ptr[indexPtr]=actualChar; // On l'affiche
+			} while (actualChar != EOF);
 		}
 	}
 	return 0;
@@ -60,15 +71,28 @@ int main(int argc, char const *argv[]){
 	//Boucler tant qu'il reste des octets
 		//Envoie le fichier 
 	//Fini
-	int tailleF = 6;
-	if(send(dS,&tailleF,sizeof(int),0)==-1){
-		perror("send() ");
-		return(-1);
+	char *filename = "rsc/16MO.txt";
+	FILE* fp = fopen(filename, "r+");
+	int tailleF;
+	struct stat st;
+	if (stat(filename, &st) == 0)
+        tailleF = st.st_size;
+    else{
+    	perror("stat (size)");
+    	exit(-1);
+    }
+	if(fp==NULL){
+		perror("Ouverture fichier");
+		exit(-1);
 	}
 
-	char *buff="Hello";
-	mySend(dS,buff,tailleF);//Envoie le fichier (boucle)
+	/*if(send(dS,&tailleF,sizeof(int),0)==-1){
+		perror("send() ");
+		exit(-1);
+	}*/
 
+
+	fclose(fp);
 	if(close(dS)){
 		perror("close() ");
 		exit(-1);

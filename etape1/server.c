@@ -4,34 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
-int myReceiv(int dsC) {
-	int size, res;
-	char message[10];
-	if (res = recv(dsC, &size, sizeof(int), 0) < 0) {
-		// send(dsC, -1, sizeof(int), 0);
-		perror("taille_recv()");
-		close(dsC);
-		return -1;
-	}
-	printf("taille a recevoir : %d\n", size);
-	while (size > 0) {
-		res = recv(dsC, &message, size, 0);
-		if (res < 0) {
-			// send(dsC, -1, sizeof(int), 0);
-			perror("message_recv()");
-			close(dsC);
-			return -1;
-		}
-
-		printf("%s\n", message); //action to_do
-
-		size -= res;
-	}
-
-	return 0;
-}
-
+#include "functionFile.h"
 
 int main(int argc, char const *argv[]) {
 
@@ -69,19 +42,26 @@ int main(int argc, char const *argv[]) {
 	socklen_t soA = sizeof(struct sockaddr_in);
 	int dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
 
-	int res = myReceiv(dSClient);
+	char *filename = "rsc/16MO(copie).txt";
+	FILE* fp = fopen(filename, "w");
+	if(fp==NULL){
+		perror("Ouverture fichier");
+		close(dS);
+		exit(-1);
+	}
+
+
+	int res = myReceiv(dSClient, fp);
 	if (res == -1) {
-		printf("ERREUR myReceiv\n");
+		perror("ERREUR myReceiv");
 		close(dS);
 		close(dSClient);
 		return -1;
 	}
 
-
 	printf("\n");
 
-	// res = send(dSClient, 0, sizeof(int), 0);
-
+	fclose(fp);
 	close(dS);
 	close(dSClient);
 	return 0;

@@ -33,6 +33,7 @@ int main(int argc, char const *argv[]){
 	//Connect to socket
 	if(connect(dS,(struct sockaddr*)&sock,tailleSock)==-1){
 		perror("connect() ");
+		close(dS);
 		exit(-1);
 	}
 	printf("Connect to ClepTorrent\n");
@@ -48,28 +49,27 @@ int main(int argc, char const *argv[]){
 	FILE* fp = fopen(filename, "r+");
 	if(fp==NULL){
 		perror("Ouverture fichier");
+		close(dS);
 		exit(-1);
 	}
 
 	int tailleF;
 	struct stat st;
 	if (stat(filename, &st) == 0)
-        tailleF = st.st_size;
+		tailleF = st.st_size;
     else{
-    	perror("stat (size)");
-    	exit(-1);
-    }
-    printf("%d\n",tailleF );
-
-	/*if(send(dS,&tailleF,sizeof(int),0)==-1){
-		perror("send() ");
+		perror("stat (size)");
+		close(dS);
+		fclose(fp);
 		exit(-1);
-	}*/
+	}
+    printf("%d\n",tailleF );
 	mySendFile(dS,fp,tailleF);
 
 	fclose(fp);
 	if(close(dS)){
 		perror("close() ");
+		fclose(fp);
 		exit(-1);
 	}else{
 		printf("dS bien fermé\n");

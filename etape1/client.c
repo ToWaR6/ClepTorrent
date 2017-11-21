@@ -15,10 +15,13 @@ int mySend(int sockfd,FILE *fp,size_t len){
 	char actualChar;
 	do{
 		actualChar = fgetc(fp); // On lit le caractère
-		ptr[indexPtr]=actualChar; // On l'affiche
-    } while (actualChar != EOF);
-
+		ptr[indexPtr]=actualChar; // On le stock
+		indexPtr++;
+    } while (actualChar != EOF && indexPtr<=1024);
+    indexPtr=0;
+   
 	while(snd<len){
+		printf("%s\n",ptr);
 		tmp= send(sockfd,&ptr[snd],rest,0);
 		if(snd==-1){
 			perror("send() ");
@@ -28,8 +31,10 @@ int mySend(int sockfd,FILE *fp,size_t len){
 			rest-=tmp;
 			do{
 				actualChar = fgetc(fp); // On lit le caractère
-				ptr[indexPtr]=actualChar; // On l'affiche
-			} while (actualChar != EOF);
+				ptr[indexPtr]=actualChar; // On le stock
+				indexPtr++;
+			} while (actualChar != EOF && indexPtr<=1024);
+			indexPtr=0;
 		}
 	}
 	return 0;
@@ -73,6 +78,11 @@ int main(int argc, char const *argv[]){
 	//Fini
 	char *filename = "rsc/16MO.txt";
 	FILE* fp = fopen(filename, "r+");
+	if(fp==NULL){
+		perror("Ouverture fichier");
+		exit(-1);
+	}
+
 	int tailleF;
 	struct stat st;
 	if (stat(filename, &st) == 0)
@@ -81,16 +91,13 @@ int main(int argc, char const *argv[]){
     	perror("stat (size)");
     	exit(-1);
     }
-	if(fp==NULL){
-		perror("Ouverture fichier");
-		exit(-1);
-	}
+    printf("%d\n",tailleF );
 
 	/*if(send(dS,&tailleF,sizeof(int),0)==-1){
 		perror("send() ");
 		exit(-1);
 	}*/
-
+	mySend(dS,fp,tailleF);
 
 	fclose(fp);
 	if(close(dS)){

@@ -7,7 +7,7 @@ int mySendFile(int sockfd,FILE *fp,size_t len){
 	char actualChar;
 	if(send(sockfd,&len,sizeof(int),0)<0){
 		perror("send taille");
-		exit(-1);
+		return(-1);
 	}
 	do{
 		actualChar = fgetc(fp); // On lit le caractère

@@ -5,24 +5,8 @@
 #include <arpa/inet.h> //htons, inet_pton
 #include <unistd.h> //close
 #include <errno.h>
-
-int mySend(int sockfd,const void *buf,size_t len){
-	int snd =0;
-	int tmp = 0;
-	int rest= len;
-	char *ptr = (char*) buf;
-	while(snd<len){
-		tmp= send(sockfd,&ptr[snd],rest,0);
-		if(snd==-1){
-			perror("send() ");
-			return(-1);
-		}else{
-			snd+=tmp;
-			rest-=tmp;
-		}
-	}
-	return 0;
-}
+#include <sys/stat.h>//Taille fichier entre autre
+#include "functionFile.h"
 
 int main(int argc, char const *argv[]){
 	if(argc<3){
@@ -34,7 +18,7 @@ int main(int argc, char const *argv[]){
 	int dS = socket(AF_INET, SOCK_STREAM , 0) ;
 	if(dS == -1){
 		perror("socket() ");
-     	exit(-1);
+		exit(-1);
 	}
 	//Define socket and size
 	struct sockaddr_in sock; 
@@ -49,6 +33,7 @@ int main(int argc, char const *argv[]){
 	//Connect to socket
 	if(connect(dS,(struct sockaddr*)&sock,tailleSock)==-1){
 		perror("connect() ");
+		close(dS);
 		exit(-1);
 	}
 	printf("Connect to ClepTorrent\n");
@@ -60,17 +45,36 @@ int main(int argc, char const *argv[]){
 	//Boucler tant qu'il reste des octets
 		//Envoie le fichier 
 	//Fini
-	int tailleF = 6;
-	if(send(dS,&tailleF,sizeof(int),0)==-1){
-		perror("send() ");
-		return(-1);
+	char *filename = "rsc/16MO.txt";
+	FILE* fp = fopen(filename, "r+");
+	if(fp==NULL){
+		perror("Ouverture fichier");
+		close(dS);
+		exit(-1);
 	}
 
-	char *buff="Hello";
-	mySend(dS,buff,tailleF);//Envoie le fichier (boucle)
+	int tailleF;
+	struct stat st;
+	if (stat(filename, &st) == 0)
+		tailleF = st.st_size;
+	else{
+		perror("stat (size)");
+		close(dS);
+		fclose(fp);
+		exit(-1);
+	}
+	printf("%d\n",tailleF );
+	if(mySendFile(dS,fp,tailleF)==-1){
+		perror("mySendFile");
+		fclose(fp);
+		close(dS);
+		exit(-1);
+	}
 
+	fclose(fp);
 	if(close(dS)){
 		perror("close() ");
+		fclose(fp);
 		exit(-1);
 	}else{
 		printf("dS bien fermé\n");

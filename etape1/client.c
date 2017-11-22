@@ -64,7 +64,7 @@ int main(int argc, char const *argv[]){
 		exit(-1);
 	}
 	printf("%d\n",tailleF );
-	if(mySendFile(dS,fp,tailleF)==-1){
+	if(mySend(dS,fp,tailleF)==-1){
 		perror("mySendFile");
 		fclose(fp);
 		close(dS);

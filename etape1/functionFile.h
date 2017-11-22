@@ -1,9 +1,11 @@
-int mySendFile(int sockfd,FILE *fp, size_t len){
+int mySend(int sockfd,FILE *fp, size_t len){
 	int snd =0;
 	int tmp = 0;
 	int rest= len;
-	char ptr[1024];
+	char ptr[1025];
+	ptr[1024] = '\0';
 	int indexPtr = 0;
+	char indexFile = 0;
 	char actualChar;
 	if(send(sockfd,&len,sizeof(int),0)<0){
 		perror("send taille");
@@ -13,25 +15,29 @@ int mySendFile(int sockfd,FILE *fp, size_t len){
 		actualChar = fgetc(fp); // On lit le caractère
 		ptr[indexPtr]=actualChar; // On le stock
 		indexPtr++;
-    } while (actualChar != EOF && indexPtr<=1024);
-    indexPtr=0;
-   
-	while(snd<len){
-		tmp= send(sockfd,&ptr[snd],rest,0);
-		if(snd==-1){
-			perror("send() ");
-			return(-1);
-		}else{
-			snd+=tmp;
-			rest-=tmp;
-			do{
-				actualChar = fgetc(fp); // On lit le caractère
-				ptr[indexPtr]=actualChar; // On le stock
-				indexPtr++;
-			} while (actualChar != EOF && indexPtr<=1024);
-			indexPtr=0;
+		indexFile++;
+	} while (actualChar != EOF && indexPtr<=1024);
+	indexPtr=0;
+	do{
+		while(snd<len){
+			tmp= send(sockfd,&ptr[snd],rest,0);
+			if(snd==-1){
+				perror("send() ");
+				return(-1);
+			}else{
+				snd+=tmp;
+				rest-=tmp;
+
+				indexPtr=0;
+			}
 		}
-	}
+		do{
+			actualChar = fgetc(fp); // On lit le caractère
+			ptr[indexPtr]=actualChar; // On le stock
+			indexPtr++;
+			indexFile++;
+		} while (actualChar != EOF && indexPtr<1024);
+	}while(indexFile<len);
 	return 0;
 }
 

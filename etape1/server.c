@@ -37,11 +37,11 @@ int main(int argc, char const *argv[]) {
 		close(dS);
 		return -1;
 	}
-
+	printf("Server ready\n");
 	struct sockaddr_in adClient;
 	socklen_t soA = sizeof(struct sockaddr_in);
 	int dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
-
+	printf("Client connecté\n");
 	char *filename = "rsc/16MO(copie).txt";
 	FILE* fp = fopen(filename, "w");
 	if(fp==NULL){

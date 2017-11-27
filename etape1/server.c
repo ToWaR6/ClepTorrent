@@ -41,11 +41,13 @@ int main(int argc, char const *argv[]) {
 	struct sockaddr_in adClient;
 	socklen_t soA = sizeof(struct sockaddr_in);
 	int dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
-	printf("Client connecté\n");
-	char *filename = "rsc/16MO(copie).txt";
+
+	printf("Client connected\n");
+	
+	char *filename = "rsc/512MB(copie).zip";
 	FILE* fp = fopen(filename, "w");
 	if(fp==NULL){
-		perror("Ouverture fichier");
+		perror("fopen()");
 		close(dS);
 		exit(-1);
 	}
@@ -64,5 +66,6 @@ int main(int argc, char const *argv[]) {
 	fclose(fp);
 	close(dS);
 	close(dSClient);
+	printf("Server close\n");
 	return 0;
 }

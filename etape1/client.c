@@ -11,14 +11,14 @@
 int main(int argc, char const *argv[]){
 	if(argc<3){
 		printf("%s -ip -port\n", argv[0]);
-		exit(-1);
+		return -1;
 	}
 
 	//Create the socket
 	int dS = socket(AF_INET, SOCK_STREAM , 0) ;
 	if(dS == -1){
-		perror("socket() ");
-		exit(-1);
+		perror("socket()");
+		return -1;
 	}
 	//Define socket and size
 	struct sockaddr_in sock; 
@@ -26,17 +26,17 @@ int main(int argc, char const *argv[]){
 	sock.sin_port=htons(atoi(argv[2])); //Port
 	if(inet_pton(AF_INET,argv[1],&sock.sin_addr)==-1){//IP adress
 		perror("inet_pton()");
-		exit(-1);
+		return -1;
 	} 
 
 	socklen_t tailleSock = sizeof(struct sockaddr_in); //Socket size
 	//Connect to socket
 	if(connect(dS,(struct sockaddr*)&sock,tailleSock)==-1){
-		perror("connect() ");
+		perror("connect()");
 		close(dS);
-		exit(-1);
+		return -1;
 	}
-	printf("Connect to ClepTorrent\n");
+	printf("Envoi du fichier\n");
 	
 	//Demander quel fichier envoyer
 	//Recupere le fichier
@@ -45,12 +45,12 @@ int main(int argc, char const *argv[]){
 	//Boucler tant qu'il reste des octets
 		//Envoie le fichier 
 	//Fini
-	char *filename = "rsc/16MO.txt";
-	FILE* fp = fopen(filename, "r+");
+	char *filename = "rsc/512MB.zip";
+	FILE* fp = fopen(filename, "r");
 	if(fp==NULL){
-		perror("Ouverture fichier");
+		perror("fopen()");
 		close(dS);
-		exit(-1);
+		return -1;
 	}
 
 	int tailleF;
@@ -58,26 +58,26 @@ int main(int argc, char const *argv[]){
 	if (stat(filename, &st) == 0)
 		tailleF = st.st_size;
 	else{
-		perror("stat (size)");
+		perror("stat() (size)");
 		close(dS);
 		fclose(fp);
-		exit(-1);
+		return -1;
 	}
-	printf("%d\n",tailleF );
+
+	printf("%d octet(s) à envoyer\n", tailleF);
+
 	if(mySend(dS,fp,tailleF)==-1){
-		perror("mySendFile");
+		perror("mySend()");
 		fclose(fp);
 		close(dS);
-		exit(-1);
+		return -1;
 	}
 
 	fclose(fp);
 	if(close(dS)){
 		perror("close() ");
-		fclose(fp);
-		exit(-1);
-	}else{
-		printf("dS bien fermé\n");
+		return -1;
 	}
+	printf("Fichier envoyé\n");
 	return 0;
 }

@@ -6,7 +6,6 @@ int mySend(int sockfd,FILE *fp, size_t len){
 	int lenBuf = 1024;
 	//for while fread
 	int indexFile=0;
-	printf("%d\n",len );
 	int rest = 0;
 	if(send(sockfd,&len,sizeof(int),0)<0){
 		perror("send taille");
@@ -15,19 +14,13 @@ int mySend(int sockfd,FILE *fp, size_t len){
 	while(indexFile<len){
 		rest = fread(&ptr,sizeof(char),1024,fp);
 		indexFile+=rest;
-		printf("rest : %d\n", rest);
-		//scanf("%1s");
 		if(rest==-1){
 			perror("fread()");
 			return -1;
 		}
-		//printf("%s\n",ptr );
-printf("%d / %d",indexFile,len );
 		snd =0;
 		while(rest!=0){
-
-			tmp= send(sockfd,&ptr[snd],rest,0);
-			printf("%d\n",tmp );
+			tmp= send(sockfd,&(ptr[snd]),rest,0);
 			if(tmp==-1){
 				perror("send() ");
 				return(-1);
@@ -36,7 +29,7 @@ printf("%d / %d",indexFile,len );
 				rest-=tmp;
 			}
 		}
-
+		tmp=0;
 	}
 	return 0;
 }
@@ -48,14 +41,12 @@ int myReceiv(int sockfd, FILE *fp) {
 		perror("taille_recv()");
 		return -1;
 	}
-	printf("res :%d | reçu : %d\n", res,size);
 	while (size > 0) {
-		printf("Il reste %d octet(s)\n", size);
-		if ((res = recv(sockfd, buffer, size, 0))< 0) {
+
+		if ((res = recv(sockfd, &buffer, 1024, 0))< 0) {
 			perror("message_recv()");
 			return -1;
 		}
-
 		fwrite(buffer, sizeof(buffer[0]), res, fp);
 
 		size -= res;

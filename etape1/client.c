@@ -8,6 +8,7 @@
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
 #include "functionFile.h"
+
 int main(int argc, char const *argv[]){
 	if(argc<3){
 		printf("%s -ip -port\n", argv[0]);
@@ -20,7 +21,6 @@ int main(int argc, char const *argv[]){
 		perror("socket()");
 		return -1;
 	}
-	printf("Socket créée\n");
 	//Define socket and size
 	struct sockaddr_in sock; 
 	sock.sin_family=AF_INET; //Family 
@@ -29,6 +29,7 @@ int main(int argc, char const *argv[]){
 		perror("inet_pton()");
 		return -1;
 	} 
+
 	socklen_t tailleSock = sizeof(struct sockaddr_in); //Socket size
 	//Connect to socket
 	if(connect(dS,(struct sockaddr*)&sock,tailleSock)==-1){
@@ -36,15 +37,16 @@ int main(int argc, char const *argv[]){
 		close(dS);
 		return -1;
 	}
+	printf("Envoi du fichier\n");
+
 	printf("Socket connectée\n");
 	//Saisir le nom de fichier 
-	char nomFichier[27];
+	char nomFichier[27] = "./rsc/";
 	printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-	if(fgets(nomFichier, sizeof(nomFichier), stdin)==NULL){
+	if(fgets(&nomFichier[6], sizeof(nomFichier), stdin)==NULL){
 		perror("fgets nomFichier");
 		return -1;
 	}
-	strcat(nomFichier,"./rsc/");
 	//Ouverture du fichier
 	FILE* fp = fopen(nomFichier, "r");
 	char q;
@@ -56,7 +58,7 @@ int main(int argc, char const *argv[]){
 			return -1;
 		}
 		printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-		if(fgets(nomFichier, 20, stdin)==NULL){
+		if(fgets(&nomFichier[6], 20, stdin)==NULL){
 			perror("fgets nomFichier");
 			return -1;
 		}

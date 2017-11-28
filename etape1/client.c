@@ -80,7 +80,7 @@ int main(int argc, char const *argv[]){
 	int tailleNomFichier = sizeof(nomFichier)/sizeof(char);
 
 	printf("Vous envoyez le fichier %s (%d charactère(s))\n",nomFichier,tailleNomFichier );
-	printf("Ce fichier est de la taille %f octets\n",tailleF/1048576);
+	printf("Ce fichier est de la taille %f octets\n",(double)tailleF/1048576);
 	/*if(mySend(dS,fp,tailleF,nomFichier,tailleNomFichier)==-1){
 		perror("mySend()");
 		fclose(fp);

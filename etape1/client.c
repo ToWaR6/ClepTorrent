@@ -6,6 +6,7 @@
 #include <unistd.h> //close
 #include <errno.h>
 #include <sys/stat.h>//Taille fichier entre autre
+#include <string.h>
 #include "functionFile.h"
 
 int main(int argc, char const *argv[]){
@@ -37,25 +38,38 @@ int main(int argc, char const *argv[]){
 		return -1;
 	}
 	printf("Envoi du fichier\n");
-	
-	//Demander quel fichier envoyer
-	//Recupere le fichier
-	//Calculer taille fichier
-	//Envoyer taille
-	//Boucler tant qu'il reste des octets
-		//Envoie le fichier 
-	//Fini
-	char *filename = "rsc/512MB.zip";
-	FILE* fp = fopen(filename, "r");
-	if(fp==NULL){
-		perror("fopen()");
-		close(dS);
+
+	printf("Socket connectée\n");
+	//Saisir le nom de fichier 
+	char nomFichier[27] = "./rsc/";
+	printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
+	if(fgets(&nomFichier[6], sizeof(nomFichier), stdin)==NULL){
+		perror("fgets nomFichier");
 		return -1;
 	}
+	//Ouverture du fichier
+	FILE* fp = fopen(nomFichier, "r");
+	char q;
+	while(fp==NULL){
 
+		printf("Fichier non-trouvé, voulez-vous arrêter l'envoie de fichier (o/n)\n");
+	 	q=getchar();
+	 	if(q=='o'){
+			return -1;
+		}
+		printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
+		if(fgets(&nomFichier[6], 20, stdin)==NULL){
+			perror("fgets nomFichier");
+			return -1;
+		}
+		strcat(nomFichier,"./rsc/");
+		fp = fopen(nomFichier,"r");
+	}
+
+	//Calcul taille du fichier
 	int tailleF;
 	struct stat st;
-	if (stat(filename, &st) == 0)
+	if (stat(nomFichier, &st) == 0)
 		tailleF = st.st_size;
 	else{
 		perror("stat() (size)");
@@ -65,13 +79,16 @@ int main(int argc, char const *argv[]){
 	}
 
 	printf("%d octet(s) à envoyer\n", tailleF);
+	int tailleNomFichier = sizeof(nomFichier)/sizeof(char);
 
-	if(mySend(dS,fp,tailleF)==-1){
+	printf("Vous envoyez le fichier %s (%d charactère(s))\n",nomFichier,tailleNomFichier );
+	printf("Ce fichier est de la taille %f octets\n",(double)tailleF/1048576);
+	/*if(mySend(dS,fp,tailleF,nomFichier,tailleNomFichier)==-1){
 		perror("mySend()");
 		fclose(fp);
 		close(dS);
 		return -1;
-	}
+	}*/
 
 	fclose(fp);
 	if(close(dS)){

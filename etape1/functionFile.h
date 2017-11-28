@@ -1,4 +1,4 @@
-int mySend(int sockfd,FILE *fp, size_t len){
+int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 	//For while send
 	int snd =0;
 	int tmp = 0;
@@ -7,11 +7,18 @@ int mySend(int sockfd,FILE *fp, size_t len){
 	//for while fread
 	int indexFile=0;
 	int rest = 0;
-	if(send(sockfd,&len,sizeof(int),0)<0){
-		perror("send() taille");
-		return(-1);
+
+	if( send(sockfd,nameFile,lenNameFile,0)<0){//Envoie du nom du fichier
+		perror("send() nom");
+		return -1;
 	}
-	while(indexFile<len){
+
+	if(send(sockfd,&len,sizeof(int),0)<0){ //Envoie de la taille du fichier
+		perror("send() taille");
+		return -1;
+	}
+	
+	while(indexFile<len){//Envoie du contenu du fichier
 		rest = fread(&ptr,sizeof(char),1024,fp);
 		indexFile+=rest;
 		if(rest==-1){

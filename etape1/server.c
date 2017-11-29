@@ -22,7 +22,7 @@ int main(int argc, char const *argv[]) {
 	struct sockaddr_in ad;
 	ad.sin_family = AF_INET;
 	ad.sin_addr.s_addr = INADDR_ANY;
-	ad.sin_port = htons((short) atoi(argv[1]));
+	ad.sin_port = (short) htons(atoi(argv[1]));
 
 	int err = bind(dS, (struct sockaddr*)&ad, sizeof(ad));
 	if (err < 0) {

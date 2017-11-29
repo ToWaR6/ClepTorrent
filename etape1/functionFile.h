@@ -44,7 +44,7 @@ void str_replace(char *target, const char *needle, const char *replacement)
     strcpy(target, buffer);
 }
 
-int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
+int mySend(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	//For while send
 	int snd =0;
 	int tmp = 0;
@@ -58,15 +58,18 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 		perror("send() taillNom");
 		return -1;
 	}
-	if( send(sockfd,nameFile,lenNameFile,0)<0){//Envoie du nom du fichier
-		perror("send() nom");
-		return -1;
-	}
-	printf("Taille : %lu\n", len);
-	if(send(sockfd,&len,sizeof(size_t),0)<0){ //Envoie de la taille du fichier
+	printf("Taille : %d\n", len);
+	if(send(sockfd,&len,sizeof(int),0)<0){ //Envoie de la taille du fichier
 		perror("send() taille");
 		return -1;
 	}
+	tmp = send(sockfd,nameFile,lenNameFile,0);
+	if( tmp<0){//Envoie du nom du fichier
+		perror("send() nom");
+		return -1;
+	}
+	printf("Nombre de caractère envoyé : %d\n",tmp);
+	int tailleSend = 0;
 	while(indexFile<len){//Envoie du contenu du fichier
 		rest = fread(&ptr,sizeof(char),1024,fp);
 		indexFile+=rest;
@@ -75,7 +78,12 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 			return -1;
 		}
 		snd =0;
+		
 		while(rest!=0){
+			//print("rest : %d, send : %d\n",rest,snd);
+			if(snd>0){
+				printf("Buff plein");
+			}
 			tmp= send(sockfd,&(ptr[snd]),rest,0);
 			if(tmp==-1){
 				perror("send() ");
@@ -84,10 +92,11 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 				snd+=tmp;
 				rest-=tmp;
 			}
+			tailleSend+=tmp;
 		}
 		tmp=0;
 	}
-	printf("dernier character envoyé :  %c\n",ptr[snd-1] );
+	printf("dernier character envoyé :  %c, en tout %d envoyé\n",ptr[snd-1],tailleSend );
 	printf("Envoie fichier done\n");
 	return 0;
 }
@@ -96,12 +105,15 @@ int myReceiv(int sockfd) {
 	int res,lenNameFile;
 	char buffer[1024];
 	char nomFichier;
-	size_t size;
+	int size;
 	if ((res = recv(sockfd, &lenNameFile, sizeof(int), 0)) < 0) {
 		perror("taille_recv()");
 		return -1;
 	}
-
+	if ((res = recv(sockfd, &size, sizeof(int), 0)) < 0) {
+		perror("taille_recv()");
+		return -1;
+	}
 	int tailleBufferNom = lenNameFile+7;
 	char filename[tailleBufferNom];
 	char tmpFilename[lenNameFile];
@@ -118,20 +130,19 @@ int myReceiv(int sockfd) {
 		perror("fopen()");
 		return -1;
 	}
-	if ((res = recv(sockfd, &size, sizeof(size_t), 0)) < 0) {
-		perror("taille_recv()");
-		return -1;
-	}
 
-	int sizeFile = (unsigned long int)size;
-	printf("reçu(size) : %lu cast : %d\n",size,sizeFile);
-	//printf("après cast (sizeFile) : %lu\n",sizeFile );
+
+	int sizeFile = size;
+	printf("reçu(size) : %d cast : %d\n",size,sizeFile);
+	int tailleRcv =0;
+	//printf("après cast (sizeFile) : %d\n",sizeFile );
 	while (size > 0) {
 		printf("%.2lf%%\r", ((double)((double)(sizeFile-size)/sizeFile))*100);
 		if ((res = recv(sockfd, buffer, 1024, 0))< 0) {
 			perror("message_recv()");
 			return -1;
 		}
+		tailleRcv+=res;
 		fwrite(buffer, sizeof(buffer[0]), res, fp);
 
 		size -= res;
@@ -140,6 +151,7 @@ int myReceiv(int sockfd) {
 			break;
 		}
 	}
+	printf("Taille reçu : %d\n",tailleRcv);
 	printf("Bonne reception\n");
 	fclose(fp);
 	return 0;

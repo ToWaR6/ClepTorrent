@@ -93,7 +93,7 @@ int main(int argc, char const *argv[]){
 	
 	printf("Vous envoyez le fichier %s (%d charactère(s))\n",nomFichier,tailleNomFichier );
 	printf("Ce fichier est de la taille %f MO\n",(double)tailleF/1048576);
-	if(mySend(dS,fp,tailleF,nomFichier,tailleNomFichier)==-1){
+	if(mySend(dS,fp,(int)tailleF,nomFichier,tailleNomFichier)==-1){
 		perror("mySend()");
 		fclose(fp);
 		close(dS);

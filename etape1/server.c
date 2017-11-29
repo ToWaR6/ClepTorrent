@@ -44,16 +44,8 @@ int main(int argc, char const *argv[]) {
 
 	printf("Client connected\n");
 	
-	char *filename = "rsc/512MB(copie).zip";
-	FILE* fp = fopen(filename, "w");
-	if(fp==NULL){
-		perror("fopen()");
-		close(dS);
-		exit(-1);
-	}
 
-
-	int res = myReceiv(dSClient, fp);
+	int res = myReceiv(dSClient);
 	if (res == -1) {
 		perror("ERREUR myReceiv");
 		close(dS);
@@ -63,7 +55,6 @@ int main(int argc, char const *argv[]) {
 
 	printf("\n");
 
-	fclose(fp);
 	close(dS);
 	close(dSClient);
 	printf("Server close\n");

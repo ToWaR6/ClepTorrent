@@ -38,32 +38,42 @@ int main(int argc, char const *argv[]){
 		return -1;
 	}
 	printf("Envoi du fichier\n");
-
+	
 	printf("Socket connectée\n");
 	//Saisir le nom de fichier 
-	char nomFichier[27] = "./rsc/";
+	char nomFichier[27] = "rsc/";
 	printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-	if(fgets(&nomFichier[6], sizeof(nomFichier), stdin)==NULL){
+	if(fgets(&nomFichier[4], sizeof(nomFichier), stdin)==NULL){
 		perror("fgets nomFichier");
 		return -1;
 	}
+	strtok(nomFichier, "\n");
 	//Ouverture du fichier
 	FILE* fp = fopen(nomFichier, "r");
 	char q;
 	while(fp==NULL){
 
-		printf("Fichier non-trouvé, voulez-vous arrêter l'envoie de fichier (o/n)\n");
+		printf("Fichier non-trouvé, q pour quitter\n");
 	 	q=getchar();
-	 	if(q=='o'){
+	 	if(q=='q'){
+	 		if(close(dS)){
+				perror("close() ");
+				return -1;
+			}
 			return -1;
 		}
+		strtok(nomFichier, "\n");
+		
 		printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-		if(fgets(&nomFichier[6], 20, stdin)==NULL){
+		if(fgets(&nomFichier[4], 20, stdin)==NULL){
 			perror("fgets nomFichier");
 			return -1;
 		}
-		strcat(nomFichier,"./rsc/");
+		strtok(nomFichier, "\n");
+		printf("Recherche du fichier %s\n",nomFichier );
 		fp = fopen(nomFichier,"r");
+		
+
 	}
 
 	//Calcul taille du fichier
@@ -77,20 +87,24 @@ int main(int argc, char const *argv[]){
 		fclose(fp);
 		return -1;
 	}
-
+	
 	printf("%d octet(s) à envoyer\n", tailleF);
-	int tailleNomFichier = sizeof(nomFichier)/sizeof(char);
-
+	int tailleNomFichier = strlen(nomFichier)+1;
+	
 	printf("Vous envoyez le fichier %s (%d charactère(s))\n",nomFichier,tailleNomFichier );
-	printf("Ce fichier est de la taille %f octets\n",(double)tailleF/1048576);
-	/*if(mySend(dS,fp,tailleF,nomFichier,tailleNomFichier)==-1){
+	printf("Ce fichier est de la taille %f MO\n",(double)tailleF/1048576);
+	if(mySend(dS,fp,tailleF,nomFichier,tailleNomFichier)==-1){
 		perror("mySend()");
 		fclose(fp);
 		close(dS);
 		return -1;
-	}*/
+	}
 
-	fclose(fp);
+	if(fclose(fp)!=0){
+		perror("fclose()");
+		close(dS);
+		return -1;
+	}
 	if(close(dS)){
 		perror("close() ");
 		return -1;

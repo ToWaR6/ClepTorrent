@@ -50,7 +50,7 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 	int tmp = 0;
 	char ptr[1024];
 	int lenBuf = 1024;
-	int leni = (int) len;
+
 	//for while fread
 	int indexFile=0;
 	int rest = 0;
@@ -62,8 +62,8 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 		perror("send() nom");
 		return -1;
 	}
-
-	if(send(sockfd,&leni,sizeof(int),0)<0){ //Envoie de la taille du fichier
+	printf("Taille : %lu\n", len);
+	if(send(sockfd,&len,sizeof(size_t),0)<0){ //Envoie de la taille du fichier
 		perror("send() taille");
 		return -1;
 	}
@@ -87,44 +87,48 @@ int mySend(int sockfd,FILE *fp, size_t len,char *nameFile,int lenNameFile){
 		}
 		tmp=0;
 	}
+	printf("dernier character envoyé :  %c\n",ptr[snd-1] );
 	printf("Envoie fichier done\n");
 	return 0;
 }
 
 int myReceiv(int sockfd) {
-	int size,res,lenNameFile;
+	int res,lenNameFile;
 	char buffer[1024];
 	char nomFichier;
-
+	size_t size;
 	if ((res = recv(sockfd, &lenNameFile, sizeof(int), 0)) < 0) {
 		perror("taille_recv()");
 		return -1;
 	}
-	lenNameFile +=7;
-	char filename[lenNameFile];
-	
 
-	if ((res = recv(sockfd, &filename, lenNameFile, 0)) < 0) {
+	int tailleBufferNom = lenNameFile+7;
+	char filename[tailleBufferNom];
+	char tmpFilename[lenNameFile];
+
+	if ((res = recv(sockfd, &tmpFilename, sizeof(filename), 0)) < 0) {
 		perror("taille_recv()");
 		return -1;
 	}
+	strcpy(filename,tmpFilename);
 	str_replace(filename,".","(copie).");
-
+	printf("nom fichier reçu : %s(%d)\n",filename,lenNameFile);
 	FILE* fp = fopen(filename, "w+");
 	if(fp==NULL){
 		perror("fopen()");
 		return -1;
 	}
-
-	if ((res = recv(sockfd, &size, sizeof(int), 0)) < 0) {
+	if ((res = recv(sockfd, &size, sizeof(size_t), 0)) < 0) {
 		perror("taille_recv()");
 		return -1;
 	}
-	int sizeFile = size;
-	printf("%d\n",size );
+
+	int sizeFile = (unsigned long int)size;
+	printf("reçu(size) : %lu cast : %d\n",size,sizeFile);
+	//printf("après cast (sizeFile) : %lu\n",sizeFile );
 	while (size > 0) {
-		//printf("%.2lf%%\r", ((double)((double)(sizeFile-size)/sizeFile))*100);
-		if ((res = recv(sockfd, &buffer, 1024, 0))< 0) {
+		printf("%.2lf%%\r", ((double)((double)(sizeFile-size)/sizeFile))*100);
+		if ((res = recv(sockfd, buffer, 1024, 0))< 0) {
 			perror("message_recv()");
 			return -1;
 		}
@@ -136,7 +140,6 @@ int myReceiv(int sockfd) {
 			break;
 		}
 	}
-	printf("%d\n",size );
 	printf("Bonne reception\n");
 	fclose(fp);
 	return 0;

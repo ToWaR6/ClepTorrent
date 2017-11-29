@@ -13,7 +13,7 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	int dS = socket(AF_INET, SOCK_STREAM, 0);
+	int dS = socket(PF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
 		return -1;
@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	err = listen(dS, 2);
+	err = listen(dS, 1);
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
@@ -55,8 +55,14 @@ int main(int argc, char const *argv[]) {
 
 	printf("\n");
 
-	close(dS);
-	close(dSClient);
+	if(close(dS)<0){
+		perror("close ds");
+		return -1;
+	}
+	if(close(dSClient)<0){
+		perror("close dsClient");
+		return -1;
+	}
 	printf("Server close\n");
 	return 0;
 }

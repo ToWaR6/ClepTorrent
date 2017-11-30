@@ -12,13 +12,13 @@ int main(int argc, char const *argv[]) {
 		printf("%s -port\n", argv[0]);
 		return -1;
 	}
-
-	int dS = socket(PF_INET, SOCK_STREAM, 0);
+	printf("Lancement du serveur\n");
+	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
 		return -1;
 	}
-
+	printf("Socket créée\n");
 	struct sockaddr_in ad;
 	ad.sin_family = AF_INET;
 	ad.sin_addr.s_addr = INADDR_ANY;
@@ -30,19 +30,25 @@ int main(int argc, char const *argv[]) {
 		close(dS);
 		return -1;
 	}
-
-	err = listen(dS, 1);
+	printf("La socket est maintenant nommé\n");
+	int nbClient = 1;
+	err = listen(dS, nbClient);
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
 		return -1;
 	}
-	printf("Server ready\n");
+	printf("Le serveur est prêt à recevoir %d clients\n", nbClient);
+
 	struct sockaddr_in adClient;
 	socklen_t soA = sizeof(struct sockaddr_in);
 	int dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
+	if(dSClient<0){
+		perror("accept ");
+		return -1;
+	}
 
-	printf("Client connected\n");
+	printf("Un client s'est connecté\n");
 	
 
 	int res = myReceiv(dSClient);
@@ -63,6 +69,6 @@ int main(int argc, char const *argv[]) {
 		perror("close dsClient");
 		return -1;
 	}
-	printf("Server close\n");
+	printf("Fermeture du serveur\n");
 	return 0;
 }

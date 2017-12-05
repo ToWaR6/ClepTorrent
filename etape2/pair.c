@@ -24,6 +24,7 @@ fichiers disponibles sur chaque pair distant,
 
 struct pairData {
 	struct sockaddr_in pairs;
+	int nbFiles;
 	char** fileList;
 };
 /*Boucle de reception annuaire 
@@ -138,7 +139,6 @@ int main(int argc, char const *argv[]) {
 	}
 	int res;
 	//Envoie du fichier
-	printf("ad.sinport %d\n",ad.sin_port );
 	if((res = send (sockAnnuaire,&ad.sin_port,sizeof(short),0))<0){
 		perror("send() port");
 		return -1;
@@ -168,10 +168,52 @@ int main(int argc, char const *argv[]) {
 			return -1;
 		}
 	}
+	/*Boucle de reception annuaire 
+		Je vais recevoir x clients
+		Je créer un tableau de la structure de taille pair_data de taille x
+		Je boucle sur x
+			Je reçois y le nombre de fichier du client x(n)
+			Je reçois sock_x(n) la socket du client x_(n) que je stocke
+			Je crée un tableau de fileList de taille y 
+			Je boucle sur y
+				Je reçois la t taille du nom de fichier
+				Je le stocke à l'index y(n) de taille t
+	*/
 
+	int nbClient;
+	if((res = recv(sockfd, &nbClient, sizeof(int), 0)) < 0) {
+		perror("recv nbClient");
+		return -1;
+	}
+	
+	struct pairData tabClient[nbClient];
+	int tailleNom = 0;
+	for (int i = 0; i < nbClient; i++){
+		if ((res = recv(sockfd, &tabClient[i].pairs, sizeof(sockaddr_in), 0)) < 0) {
+			perror("recv pairs");
+			return -1;
+		}
+		if((res = recv(sockfd, &tabClient[i].nbFiles, sizeof(int), 0)) < 0) {
+			perror("recv nbFiles");
+			return -1;
+		}
+		tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
+		for (int j = 0; j < tabClient[i].nbFiles; j++){
+			
+			if ((res = recv(sockfd, &tailleNom, sizeof(int), 0)) < 0) {
+				perror("recv tailleNom");
+				return -1;
+			}
 
+			tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
+			if((res = recv(sockfd, &tabClient[i].fileList[j], tailleNom, 0)) < 0) {
+				perror("recv nomFichier");
+				return -1;
+			}
+		}
+	}
 
-	printf("Fermeture de la socket client.....");
+	printf("Fermeture de la socket annuaire.....");
 	int testClose = close(sockAnnuaire);
 	if(testClose == -1) {
 		printf("fail\n");

@@ -14,7 +14,7 @@ struct pairData {
 
 int main(int argc, char const *argv[]) {
 	if(argc != 3) {
-		printf("Usage: %s <PORT> <PAIR_MAX>\n", argv[1]);
+		printf("Usage: %s <PORT> <PAIR_MAX>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
@@ -123,7 +123,7 @@ int main(int argc, char const *argv[]) {
 			// recv nom
 			printf("Reception du nom du fichier %d.....", i);
 			char name[nameSize];
-			testRecv = recv(sockCli, &name, sizeof(name), 0);
+			testRecv = recv(sockCli, &name, nameSize, 0);
 			if(testRecv == -1) {
 				printf("fail\n");
 				perror("recv()");

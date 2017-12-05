@@ -138,6 +138,7 @@ int main(int argc, char const *argv[]) {
 	}
 	int res;
 	//Envoie du fichier
+	printf("ad.sinport %d\n",ad.sin_port );
 	if((res = send (sockAnnuaire,&ad.sin_port,sizeof(short),0))<0){
 		perror("send() port");
 		return -1;
@@ -162,7 +163,7 @@ int main(int argc, char const *argv[]) {
 		}
 
 		//Envoie nom du fichier
-		if ((res=send(sockAnnuaire,&fileList[i],sizeof(int),0))<0){
+		if ((res=send(sockAnnuaire,&fileList[i],tailleNom,0))<0){
 			perror("send() nomFichier");
 			return -1;
 		}

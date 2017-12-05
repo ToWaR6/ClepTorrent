@@ -8,8 +8,7 @@
 #include <arpa/inet.h> // inet_pton()
 
 struct pairData {
-	char* ip[15];
-	int* port;
+	struct sockaddr_in pairs[3];
 	char* fileList[20];
 };
 
@@ -28,16 +27,6 @@ int addClient(struct pairData* pairs, int* lastFreeId char* ip, int* port, char*
 	return -1;
 }
 
-// Thread d'acceptation de nouveau client
-void acceptPair() {
-
-}
-
-// Thread d'envoie de la structure a tous les clients
-void sendStructure() {
-
-}
-
 int main(int argc, char const *argv[]) {
 	if(argc != 2) {
 		printf("Usage: %s <PORT>\n", argv[1]);
@@ -45,7 +34,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	// variable du serveur
-	struct pairData* pairs;
+	struct pairData pData;
 	int nbMaxPair = 3;
 	int lastFreeId = 0;
 
@@ -74,7 +63,7 @@ int main(int argc, char const *argv[]) {
 
 	printf("Listen de la socket.....");
 	int testListen = listen(sockServ, 3);
-	if(testBind == -1) {
+	if(testListen == -1) {
 		printf("fail\n");
 		perror("listen()");
 		exit(EXIT_FAILURE);
@@ -94,6 +83,8 @@ int main(int argc, char const *argv[]) {
 		}
 		printf("done\n");
 
+		pData.pairs[lastFreeId] = addrCli;
+
 		// recv de la taille de la liste de noms
 		// TODO
 
@@ -102,6 +93,8 @@ int main(int argc, char const *argv[]) {
 		// recv de la liste de noms
 		// TODO
 
+		pData.fileList
+
 		// update de la structure
 		char* ipCli;
 		inet_ntop(AF_INET, addrCli.sin_addr, ipCli, sizeof(lenAddrCli));
@@ -109,30 +102,37 @@ int main(int argc, char const *argv[]) {
 		int portCli = ntohs(addrCli.sin_port);
 			// test retour ntohs
 
-		printf("Add client to database.....");
-		int testAddClient = addClient(pairs, &lastFreeId, ipCli, portCli, fileList, &nbMaxPair);
-		if(testAddClient == -1) {
-			printf("fail\n");
-			perror("addClient()");
-			exit(EXIT_FAILURE);
+		lastFreeId = -1;
+		for(int i = 0; i < nbMaxPair) {
+			if(pData.pairs[i] == NULL) {
+				lastFreeId = i;
+			}
 		}
-		printf("done\n");
-
-		// send de la taille de la structure
-		// TODO
-
-		// send de la structure
-		// TODO
-
-		// printf("Fermeture de la socket client.....");
-		// int testCloseCli = close(sockCli);
-		// if(testCloseCli == -1) {
-		// 	printf("fail\n");
-		// 	perror("close()");
-		// 	exit(EXIT_FAILURE);
-		// }
-		// printf("done\n");
 	}
+
+	printf("Add client to database.....");
+	int testAddClient = addClient(pairs, &lastFreeId, ipCli, portCli, fileList, &nbMaxPair);
+	if(testAddClient == -1) {
+		printf("fail\n");
+		perror("addClient()");
+		exit(EXIT_FAILURE);
+	}
+	printf("done\n");
+
+	// send de la taille de la structure
+	// TODO
+
+	// send de la structure
+	// TODO
+
+	// printf("Fermeture de la socket client.....");
+	// int testCloseCli = close(sockCli);
+	// if(testCloseCli == -1) {
+	// 	printf("fail\n");
+	// 	perror("close()");
+	// 	exit(EXIT_FAILURE);
+	// }
+	// printf("done\n");
 
 	printf("Fermeture de la socket serveur.....");
 	int testCloseServ = close(sockServ);

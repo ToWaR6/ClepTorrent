@@ -125,65 +125,62 @@ int main(int argc, char const *argv[]) {
 
 			// recv nom
 			printf("Reception du nom du fichier %d.....", i);
-			char name[nameSize];
-			testRecv = recv(sockCli, &name, nameSize, 0);
+
+			testRecv = recv(sockCli, pData[lastFreeId].fileList[i], nameSize, 0);
 			if(testRecv == -1) {
 				printf("fail\n");
 				perror("recv()");
 				exit(EXIT_FAILURE);
 			}
-			// printf("done\n");
-			printf("Reception de %d bit, pour la valeur %s\n", testRecv, name);
 
-			pData[lastFreeId].fileList[i] = name;
+
+
 		}
-
+		printf("Avant send : %s \n" ,pData[0].fileList[0]);
 		nbPair++;
-
+		
 		// ****************
 		// * SEND FICHIER *
 		// ****************
 
 		// send nb client
-		printf("Envoie du nombre de client.....");
-		int testSend = send(sockCli, &nbPair, sizeof(int), 0);
+		int testSend;
+		testSend = send(sockCli, &nbPair, sizeof(int), 0);
+		printf("Après send : %s \n" ,pData[0].fileList[0]);
+
+
 		if(testSend == -1) {
-			printf("fail\n");
 			perror("send()");
 			exit(EXIT_FAILURE);
 		}
 		printf("done\n");
 
+
 		// pour chaque client enregistrer
 		for(int i = 0; i < nbPair; i++) {
 			// send sockaddr_in
-			printf("Envoie du sockaddr_in client.....");
-			testSend = send(sockCli, &pData[i].pair, sizeof(sockaddr_in), 0);
+			testSend = send(sockCli, &pData[i].pair, sizeof(struct sockaddr_in), 0);
 			if(testSend == -1) {
-				printf("fail\n");
 				perror("send()");
 				exit(EXIT_FAILURE);
 			}
-			printf("done\n");
 
 			// send nb fichier
-			printf("Envoie du nombre de fichier du client.....");
 			int testSend = send(sockCli, &pData[i].nbFile, sizeof(int), 0);
 			if(testSend == -1) {
-				printf("fail\n");
 				perror("send()");
 				exit(EXIT_FAILURE);
 			}
-			printf("done\n");
 
+			
 			// pour chaque fichier
 			for(int j = 0; j < pData[i].nbFile; j++) {
 				// send taille du nom
-				printf("Envoie de la taille du fichier %d.....", j);
+
 				int nameSize = strlen(pData[i].fileList[j])+1;
+				printf("size : %d\n",nameSize );
 				testSend = send(sockCli, &nameSize, sizeof(int), 0);
 				if(testSend == -1) {
-					printf("fail\n");
 					perror("send()");
 					exit(EXIT_FAILURE);
 				}
@@ -191,9 +188,8 @@ int main(int argc, char const *argv[]) {
 
 				// send le nom
 				printf("Envoie du nom de fichier %d.....", j);
-				testSend = send(sockCli, &pData[i].fileList[j], nameSize, 0);
+				testSend = send(sockCli, pData[i].fileList[j], nameSize, 0);
 				if(testSend == -1) {
-					printf("fail\n");
 					perror("send()");
 					exit(EXIT_FAILURE);
 				}

@@ -155,6 +155,7 @@ int main(int argc, char const *argv[]) {
 	}
 	int tailleNom = 0;
 	for (int i = 0; i < cptFiles; ++i){
+		fileList[i][strlen(fileList[i])+1]= '\0';
 		tailleNom = strlen(fileList[i])+1;
 		//Envoie du nombre de caractère
 		if((res=send(sockAnnuaire,&tailleNom,sizeof(int),0))<0){ 
@@ -181,35 +182,36 @@ int main(int argc, char const *argv[]) {
 	*/
 
 	int nbClient;
-	if((res = recv(sockfd, &nbClient, sizeof(int), 0)) < 0) {
+	if((res = recv(sockAnnuaire, &nbClient, sizeof(int), 0)) < 0) {
 		perror("recv nbClient");
 		return -1;
 	}
-	
+	printf("Nombre de client : %d\n",nbClient );
 	struct pairData tabClient[nbClient];
-	int tailleNom = 0;
 	for (int i = 0; i < nbClient; i++){
-		if ((res = recv(sockfd, &tabClient[i].pairs, sizeof(sockaddr_in), 0)) < 0) {
+		if ((res = recv(sockAnnuaire, &tabClient[i].pairs, sizeof(struct sockaddr_in), 0)) < 0) {
 			perror("recv pairs");
 			return -1;
 		}
-		if((res = recv(sockfd, &tabClient[i].nbFiles, sizeof(int), 0)) < 0) {
+		if((res = recv(sockAnnuaire, &tabClient[i].nbFiles, sizeof(int), 0)) < 0) {
 			perror("recv nbFiles");
 			return -1;
 		}
+		printf("Nombre de fichiers %d \n",tabClient[i].nbFiles );
 		tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 		for (int j = 0; j < tabClient[i].nbFiles; j++){
 			
-			if ((res = recv(sockfd, &tailleNom, sizeof(int), 0)) < 0) {
+			if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 				perror("recv tailleNom");
 				return -1;
 			}
-
+			printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
 			tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
-			if((res = recv(sockfd, &tabClient[i].fileList[j], tailleNom, 0)) < 0) {
+			if((res = recv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
 				perror("recv nomFichier");
 				return -1;
 			}
+			printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 		}
 	}
 

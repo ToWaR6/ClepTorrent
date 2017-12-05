@@ -2,13 +2,15 @@
 #include <stdlib.h> // exit(), EXIT_FAILURE
 #include <unistd.h> // close()
 #include <errno.h> // errno
+#include <string.h> // strlen()
 #include <sys/types.h> // socket(), bind(), listen(), accept(), recv(), send()
 #include <sys/socket.h> // socket(), bind(), listen(), accept(), recv(), send()
 #include <netinet/in.h> // sockaddr_in
 #include <arpa/inet.h> // inet_pton()
 
 struct pairData {
-	struct sockaddr_in pairs;
+	struct sockaddr_in pair;
+	int nbFile;
 	char** fileList;
 };
 
@@ -88,7 +90,7 @@ int main(int argc, char const *argv[]) {
 		printf("Reception de %d bit, pour la valeur %d\n", testRecv, port);
 
 		addrCli2.sin_port = port;
-		pData[lastFreeId].pairs = addrCli2;
+		pData[lastFreeId].pair = addrCli2;
 
 		// recv du nombre de fichier
 		printf("Reception du nombre de fichier du client.....");
@@ -102,6 +104,7 @@ int main(int argc, char const *argv[]) {
 		// printf("done\n");
 		printf("Reception de %d bit, pour la valeur %d\n", testRecv, nbFile);
 
+		pData[lastFreeId].nbFile = nbFile;
 		pData[lastFreeId].fileList = (char**)malloc(nbFile * sizeof(char*));
 
 		// for charque fichier
@@ -153,24 +156,51 @@ int main(int argc, char const *argv[]) {
 
 		// pour chaque client enregistrer
 		for(int i = 0; i < nbPair; i++) {
+			// send sockaddr_in
+			printf("Envoie du sockaddr_in client.....");
+			testSend = send(sockCli, &pData[i].pair, sizeof(sockaddr_in), 0);
+			if(testSend == -1) {
+				printf("fail\n");
+				perror("send()");
+				exit(EXIT_FAILURE);
+			}
+			printf("done\n");
+
 			// send nb fichier
-			// printf("Envoie du nombre de fichier du client.....");
-			// int testSend = send(sockCli, &nbFichier, sizeof(int), 0);
-			// if(testSend == -1) {
-			// 	printf("fail\n");
-			// 	perror("send()");
-			// 	exit(EXIT_FAILURE);
-			// }
-			// printf("done\n");
+			printf("Envoie du nombre de fichier du client.....");
+			int testSend = send(sockCli, &pData[i].nbFile, sizeof(int), 0);
+			if(testSend == -1) {
+				printf("fail\n");
+				perror("send()");
+				exit(EXIT_FAILURE);
+			}
+			printf("done\n");
 
 			// pour chaque fichier
-			// send taille du nom
-			// send le nom
+			for(int j = 0; j < pData[i].nbFile; j++) {
+				// send taille du nom
+				printf("Envoie de la taille du fichier %d.....", j);
+				int nameSize = strlen(pData[i].fileList[j])+1;
+				testSend = send(sockCli, &nameSize, sizeof(int), 0);
+				if(testSend == -1) {
+					printf("fail\n");
+					perror("send()");
+					exit(EXIT_FAILURE);
+				}
+				printf("done\n");
+
+				// send le nom
+				printf("Envoie du nom de fichier %d.....", j);
+				testSend = send(sockCli, &pData[i].fileList[j], nameSize, 0);
+				if(testSend == -1) {
+					printf("fail\n");
+					perror("send()");
+					exit(EXIT_FAILURE);
+				}
+				printf("done\n");
+			}
 		}
-
-
-
-
+		
 		// lastFreeId = -1;
 		// for(int i = 0; i < nbMaxPair; i++) {
 		// 	if(pData.pairs[i] == NULL) {
@@ -178,23 +208,6 @@ int main(int argc, char const *argv[]) {
 		// 	}
 		// }
 	}
-
-
-
-	// send de la taille de la structure
-	// TODO
-
-	// send de la structure
-	// TODO
-
-	// printf("Fermeture de la socket client.....");
-	// int testCloseCli = close(sockCli);
-	// if(testCloseCli == -1) {
-	// 	printf("fail\n");
-	// 	perror("close()");
-	// 	exit(EXIT_FAILURE);
-	// }
-	// printf("done\n");
 
 	printf("Fermeture de la socket serveur.....");
 	int testCloseServ = close(sockServ);

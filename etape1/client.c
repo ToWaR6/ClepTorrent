@@ -61,7 +61,7 @@ int main(int argc, char const *argv[]){
 	struct sockaddr_in sock; 
 	sock.sin_family=AF_INET; //Family 
 	sock.sin_port=htons(atoi(argv[2])); //Port
-	if(strcmp(argv[2],"localhost")==0){
+	if(strcmp(argv[1],"localhost")==0){
 		if(inet_pton(AF_INET,"127.0.0.1",&sock.sin_addr)<0){//IP adress
 			perror("inet_pton()");
 			return -1;

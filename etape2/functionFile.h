@@ -8,7 +8,7 @@
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif
 
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
@@ -168,6 +168,9 @@ int myReceivFile(int sockfd,char *dest) {
 		perror("taille_recv()");
 		return -1;
 	}
+	else if (res==0){
+		return 0;
+	}
 	else if(DEBUG){
 		printf("\nLe premier recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",size );
@@ -187,9 +190,12 @@ int myReceivFile(int sockfd,char *dest) {
 		printf("Progression %.2lf%%\r", ((double)((double)(sizeFile-size)/sizeFile))*100);
 		if(size<1025)
 			len = size;
-		if ((res = myLoopReceiv(sockfd, buffer, len, 0))<=0) {
+		if ((res = myLoopReceiv(sockfd, buffer, len, 0))<0) {
 			perror("message_recv()");
-			return -1;
+			return res;
+		}
+		else if(res==0){
+			return 0;
 		}
 		tailleRcv+=res;
 		fwrite(buffer, sizeof(buffer[0]), res, fp);

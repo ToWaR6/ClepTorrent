@@ -191,7 +191,7 @@ void *clientThread(void* arg){
 				pthread_exit(NULL);
 			}
 			printf("Nombre de client : %d\n",nbClient );
-			struct pairData tabClient[nbClient];
+			tabClient = (struct pairData*)malloc(nbClient * sizeof(struct pairData*));
 			for (int i = 0; i < nbClient; i++){
 				if ((res = recv(sockAnnuaire, &tabClient[i].pairs, sizeof(struct sockaddr_in), 0)) < 0) {
 					perror("recv pairs");
@@ -258,11 +258,12 @@ void *clientThread(void* arg){
 				}
 				printf("Socket client crée\n");
 
-				printf("Connexion au serveur.....");
+				printf("Connexion au client.....\n");
 				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) == -1) {
 					perror("connect()");
 					pthread_exit(NULL);
 				}
+				printf("Client connecté.....\n");
 				res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
 				if(res<0){
 					perror("mySendString");
@@ -279,12 +280,14 @@ void *clientThread(void* arg){
 					pthread_exit(NULL);
 				}
 				else if (res ==0){
-					printf("Le pair ne semble pas possèder le client désolé\n");
+					printf("Le pair ne semble pas possèder le fichier... désolé\n");
 				}
 				else{
 					printf("Fichier bien reçu\n");
 				}
+				memset(destination,'\0',512);
 				strcpy(destination,pT->dest);
+				destination[strlen(pT->dest)] = '/';
 			}else{
 				printf("Il n'y a pas autant de client\n");
 			}

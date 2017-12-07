@@ -107,8 +107,7 @@ int main(int argc, char const *argv[]) {
 		// recv du nombre de fichier
 		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){
 			nbPair++;
-			pData[lastFreeId].pair.sin_port = addrCli2.sin_port;
-			pData[lastFreeId].pair.sin_addr.s_addr = addrCli2.sin_addr.s_addr;
+			memcpy(&pData[lastFreeId].pair,&addrCli2,lenAddrCli);
 			
 			printf("addrCli ip : %d = %d\n",addrCli.sin_addr.s_addr,pData[0].pair.sin_addr.s_addr);
 			testRecv = recv(sockCli, &pData[lastFreeId].nbFile, sizeof(int), 0);

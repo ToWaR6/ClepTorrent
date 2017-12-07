@@ -29,6 +29,15 @@ struct pairData {
 	int nbFiles;
 	char** fileList;
 };
+
+struct paramsThreadClient{
+	int port;
+	struct sockaddr_in *sockAddr;
+	char dest[256];
+	int nbPair;
+	struct pairData* tabClient;
+
+};
 /*Boucle de reception annuaire 
 	Je vais recevoir x clients
 	Je créer un tableau de la structure de taille pair_data de taille x
@@ -49,7 +58,7 @@ void* serverThread(void* arg) {
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
-		return NULL;
+		pthread_exit(NULL);
 	}
 	printf("SERVER : Socket ecoute créée\n");
 	struct sockaddr_in ad;
@@ -61,14 +70,14 @@ void* serverThread(void* arg) {
 	if (err < 0) {
 		perror("bind()");
 		close(dS);
-		return NULL;
+		pthread_exit(NULL);
 	}
 
 	err = listen(dS, 2);
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
-		return NULL;
+		pthread_exit(NULL);
 	}
 
 
@@ -85,25 +94,25 @@ void* serverThread(void* arg) {
 		if (dSClient < 0) {
 			perror("accept ");
 			close(dS);
-			return NULL;
+			pthread_exit(NULL);
 		}
-
+		printf("Un nouveau client !\n");
 		if ((err = recv(dSClient, &sizeName, sizeof(int), 0)) < 0) {
 			perror("recv() taille");
 			close(dS);
 			close(dSClient);
-			return NULL;
+			pthread_exit(NULL);
 		}
 		if ((err = myLoopReceiv(dSClient, &nomFichier[4], sizeName, 0)) < 0) {
 			perror("name_recv()");
 			close(dS);
 			close(dSClient);
-			return NULL;
+			pthread_exit(NULL);
 		}
 
 		FILE* fp = fopen(nomFichier, "r");
 		if (fp == NULL) {
-			printf("ya pas de fichier %s... connard\n", nomFichier);
+			printf("ya pas de fichier %s...\n", nomFichier);
 			close(dSClient);
 		} else {
 				if (stat(nomFichier, &st) == 0)
@@ -113,14 +122,14 @@ void* serverThread(void* arg) {
 					close(dS);
 					close(dSClient);
 					fclose(fp);
-					return NULL;
+					pthread_exit(NULL);
 				}
 			
 			if ((err = mySendFile(dSClient, fp, tailleF, nomFichier, sizeName)) < 0) {
 				perror("mySendFile()");
 				close(dS);
 				close(dSClient);
-				return NULL;
+				pthread_exit(NULL);
 			}
 
 			printf("envoyé\n");
@@ -133,9 +142,161 @@ void* serverThread(void* arg) {
 
 }
 
+void *clientThread(void* arg){
+
+	struct paramsThreadClient* pT  = (struct paramsThreadClient*) arg;
+	struct sockaddr_in * addrServ = pT->sockAddr;
+	int port = pT->port;
+	int reponse = 0;
+	int resultScan = 0;
+	char nomFichier[128];
+	char destination[512];
+	strcpy(destination,pT->dest);
+	destination[strlen(pT->dest)] = '/';
+	//m-aj variables
+	int sockAnnuaire,res,nbClient,tailleNom;
+	nbClient = pT->nbPair;
+	struct pairData *tabClient = pT->tabClient;
+
+	do{
+		printf("Bonjour voulez vous mettre-à-jour (0), télécharger un fichier (1) ou éteindre le P2P (2)\n");
+		resultScan = scanf("%d",&reponse);
+		if(resultScan==EOF){
+			perror("scanf réponse\n");
+			pthread_exit(NULL);
+		}
+		if(resultScan==0){
+			while(fgetc(stdin)!='\n');
+		}
+		if(reponse==0){//M-a-j
+			printf("Creation de la socket.....\n");
+			sockAnnuaire = socket(AF_INET, SOCK_STREAM, 0);
+			if(sockAnnuaire == -1) {
+				perror("socket()");
+				pthread_exit(NULL);
+			}
+			if(connect(sockAnnuaire, (struct sockaddr*)addrServ, sizeof(*addrServ)) == -1) {
+				perror("connect()");
+				pthread_exit(NULL);
+			}
+			printf("Connecté au serveur\n");
+			if((res = send (sockAnnuaire,&port,sizeof(short),0))<0){
+				perror("send() port");
+				pthread_exit(NULL);
+			}
+			printf("Port %d envoyé \n",port);
+
+			if((res = recv(sockAnnuaire, &nbClient, sizeof(int), 0)) < 0) {
+				perror("recv nbClient");
+				pthread_exit(NULL);
+			}
+			printf("Nombre de client : %d\n",nbClient );
+			struct pairData tabClient[nbClient];
+			for (int i = 0; i < nbClient; i++){
+				if ((res = recv(sockAnnuaire, &tabClient[i].pairs, sizeof(struct sockaddr_in), 0)) < 0) {
+					perror("recv pairs");
+					pthread_exit(NULL);
+				}
+				if((res = recv(sockAnnuaire, &tabClient[i].nbFiles, sizeof(int), 0)) < 0) {
+					perror("recv nbFiles");
+					pthread_exit(NULL);
+				}
+				printf("Nombre de fichiers %d du client %d \n",tabClient[i].nbFiles,i );
+				tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
+				for (int j = 0; j < tabClient[i].nbFiles; j++){
+					if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
+						perror("recv tailleNom");
+						pthread_exit(NULL);
+					}
+					printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
+					tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
+					if((res = myLoopReceiv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
+						perror("recv nomFichier");
+						pthread_exit(NULL);
+					}
+					else if(res==0){
+						pthread_exit(NULL);
+					}
+					printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
+				}
+			}
+			if(close(sockAnnuaire) == -1) {
+				perror("close()");
+				pthread_exit(NULL);
+			}
+		}
+		else if(reponse == 1){//client
+
+			printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
+			if((resultScan = scanf(" %20s",nomFichier))==EOF){
+				perror("scanf nomFichier");
+				pthread_exit(NULL);
+			}
+			if(resultScan==0){
+				while(fgetc(stdin)!='\n');
+			}
+			strtok(nomFichier, "\n");
+			nomFichier[strlen(nomFichier)] = '\0';
+			strcat(destination,nomFichier);
+			printf("Vous reclamez le fichier %s il sera stocké à l'adresse %s \n",nomFichier,destination );
+
+			printf("Quel est le numero du client qui possède ce fichier ? \n");
+			resultScan = scanf("%d",&reponse);
+			if(resultScan==EOF){
+				perror("scanf réponse\n");
+				pthread_exit(NULL);
+			}
+			if(resultScan==0){
+				while(fgetc(stdin)!='\n');
+			}
+			if(reponse<nbClient){
+				int sockPair = socket(AF_INET, SOCK_STREAM, 0);
+				if(sockPair == -1) {
+					printf("fail\n");
+					perror("socket()");
+					pthread_exit(NULL);
+				}
+				printf("Socket client crée\n");
+
+				printf("Connexion au serveur.....");
+				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) == -1) {
+					perror("connect()");
+					pthread_exit(NULL);
+				}
+				res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
+				if(res<0){
+					perror("mySendString");
+					pthread_exit(NULL);
+				}
+				else if (res==0){
+					pthread_exit(NULL);
+				}
+
+				res = myReceivFile(sockPair,destination);
+				if (res == -1) {
+					perror("ERREUR myReceivFile");
+					close(sockPair);
+					pthread_exit(NULL);
+				}
+				else if (res ==0){
+					printf("Le pair ne semble pas possèder le client désolé\n");
+				}
+				else{
+					printf("Fichier bien reçu\n");
+				}
+				strcpy(destination,pT->dest);
+			}else{
+				printf("Il n'y a pas autant de client\n");
+			}
+			reponse = 1;
+		}
+	}while(reponse!=2);
+	pthread_exit(NULL);
+
+}
 int main(int argc, char const *argv[]) {
-	if(argc < 4) {
-		printf("Usage: %s <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossierSource> \n", argv[0]);
+	if(argc < 5) {
+		printf("Usage: %s <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossierSource> <dossierDest> \n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
@@ -210,36 +371,6 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("Connecté au serveur\n");
 
-	//Création de ma socket
-
-	// int mySock = socket(AF_INET,SOCK_STREAM,0);
-	// if (mySock < 0) {
-	// 	perror("socket()");
-	// 	return -1;
-	// }
-	// printf("Socket créée\n");
-	// struct sockaddr_in ad;
-	// ad.sin_family = AF_INET;
-	// ad.sin_addr.s_addr = INADDR_ANY;
-	// ad.sin_port = (short) htons(atoi(argv[3]));
-
-	// int err = bind(mySock, (struct sockaddr*)&ad, sizeof(ad));
-	// if (err < 0) {
-	// 	perror("bind()");
-	// 	close(mySock);
-	// 	return -1;
-	// }
-
-//// choix ##############################
-
-
-	// int res;
-	// //Envoie du fichier
-	// if((res = send (sockAnnuaire,&ad.sin_port,sizeof(short),0))<0){
-	// 	perror("send() port");
-	// 	return -1;
-	// }
-
 	int res;
 	short port = (short) htons(atoi(argv[3]));
 	//Envoie du fichier
@@ -247,8 +378,6 @@ int main(int argc, char const *argv[]) {
 		perror("send() port");
 		return -1;
 	}
-
-//// end choix ##########################
 
 	// printf("Port %d envoyé \n",ad.sin_port);
 
@@ -332,14 +461,24 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("done\n");
 	
-	pthread_t tListen;
+	pthread_t tListen1;
+	pthread_t tListen2;
 	int portParam = atoi(argv[3]);
-	pthread_create(&tListen, NULL, &serverThread, &portParam);
+	pthread_create(&tListen1, NULL, &serverThread, &portParam);
+
+	struct paramsThreadClient pT;
+	pT.port = htons(5678);
+	pT.sockAddr = &addrServ;
+	strcpy(pT.dest,argv[5]);
+	pT.nbPair = nbClient;
+	pT.tabClient = tabClient;
+
+	pthread_create(&tListen2,NULL,&clientThread,&pT);
 	// lancer serverThread
 	// arg : argv[3]
 
-	pthread_join(tListen, (void**) &portParam);
-
+	pthread_join(tListen1, NULL);
+	pthread_join(tListen2, NULL);
 	return 0;
 }
 

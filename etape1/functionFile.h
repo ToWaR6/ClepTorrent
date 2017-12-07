@@ -7,41 +7,39 @@
 #include <errno.h>
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
-#include <string.h>
 
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
 
-void str_replace(char *target, const char *needle, const char *replacement)
-{
-    char buffer[1024] = { 0 };
-    char *insert_point = &buffer[0];
-    const char *tmp = target;
-    size_t needle_len = strlen(needle);
-    size_t repl_len = strlen(replacement);
+void str_replace(char *target, const char *needle, const char *replacement){
+	char buffer[1024] = { 0 };
+	char *insert_point = &buffer[0];
+	const char *tmp = target;
+	size_t needle_len = strlen(needle);
+	size_t repl_len = strlen(replacement);
 
-    while (1) {
-        const char *p = strstr(tmp, needle);
+	while (1) {
+		const char *p = strstr(tmp, needle);
 
-        // walked past last occurrence of needle; copy remaining part
-        if (p == NULL) {
-            strcpy(insert_point, tmp);
-            break;
-        }
+		// walked past last occurrence of needle; copy remaining part
+		if (p == NULL) {
+			strcpy(insert_point, tmp);
+			break;
+		}
 
-        // copy part before needle
-        memcpy(insert_point, tmp, p - tmp);
-        insert_point += p - tmp;
+		// copy part before needle
+		memcpy(insert_point, tmp, p - tmp);
+		insert_point += p - tmp;
 
-        // copy replacement string
-        memcpy(insert_point, replacement, repl_len);
-        insert_point += repl_len;
+		// copy replacement string
+		memcpy(insert_point, replacement, repl_len);
+		insert_point += repl_len;
 
-        // adjust pointers, move on
-        tmp = p + needle_len;
-    }
+		// adjust pointers, move on
+		tmp = p + needle_len;
+	}
 
-    // write altered string back to target
-    strcpy(target, buffer);
+	// write altered string back to target
+	strcpy(target, buffer);
 }
 
 int myLoopSend(int sockfd, const char *buf, size_t len, int flags){
@@ -50,7 +48,7 @@ int myLoopSend(int sockfd, const char *buf, size_t len, int flags){
 	rest= len;
 	while(rest!=0){
 
-		tmp= send(sockfd,&(buf[haveToSnd]),rest,0);
+		tmp = send(sockfd,&(buf[haveToSnd]),rest,0);
 		if(tmp==-1){
 			perror("send() ");
 			return(-1);
@@ -157,6 +155,23 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	return 0;
 }
 
+int myLoopReceiv(int sockfd, char *buf, size_t len, int flags){
+	int rest = len;
+	int alreadyReceiv, tmp = 0;
+
+	while (rest > 0) {
+		tmp = recv(sockfd, &(buf[alreadyReceiv]), rest, flags);
+		if (tmp == -1) {
+			perror("loop_receiv");
+			return -1;
+		}
+
+		rest -= tmp;
+		alreadyReceiv += tmp;
+	}
+	return alreadyReceiv;
+}
+
 int myReceivFile(int sockfd) {
 	int res,lenNameFile;
 	char buffer[1024];
@@ -182,7 +197,7 @@ int myReceivFile(int sockfd) {
 	char filename[tailleBufferNom];
 	char tmpFilename[lenNameFile];
 
-	if ((res = recv(sockfd, &tmpFilename, lenNameFile, 0)) < 0) {
+	if ((res = myLoopReceiv(sockfd, &tmpFilename, lenNameFile, 0)) < 0) {
 		perror("taille_recv()");
 		return -1;
 	}
@@ -220,3 +235,4 @@ int myReceivFile(int sockfd) {
 	fclose(fp);
 	return 0;
 }
+

@@ -51,9 +51,9 @@ int main(int argc, char const *argv[]) {
 	printf("Un client s'est connecté\n");
 	
 
-	int res = myReceiv(dSClient);
+	int res = myReceivFile(dSClient);
 	if (res == -1) {
-		perror("ERREUR myReceiv");
+		perror("ERREUR myReceivFile");
 		close(dS);
 		close(dSClient);
 		return -1;

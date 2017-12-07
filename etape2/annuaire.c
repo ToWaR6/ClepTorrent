@@ -31,7 +31,7 @@ int newPair(const struct pairData *pData,int nbPair,const struct sockaddr_in *ad
 	return 1;
 }
 int main(int argc, char const *argv[]) {
-	if(argc >3) {
+	if(argc < 3) {
 		printf("Usage: %s <PORT> <nbPairMax>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -45,6 +45,7 @@ int main(int argc, char const *argv[]) {
 	printf("Creation de la socket.....");
 	int sockServ = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockServ == -1) {
+		printf("fail\n");
 		perror("socket()");
 		exit(EXIT_FAILURE);
 	}
@@ -58,6 +59,7 @@ int main(int argc, char const *argv[]) {
 	printf("Bind de la socket.....");
 	int testBind = bind(sockServ, (struct sockaddr*)&addrServ, sizeof(addrServ));
 	if(testBind == -1) {
+		printf("fail\n");
 		perror("bind()");
 		exit(EXIT_FAILURE);
 	}
@@ -66,6 +68,7 @@ int main(int argc, char const *argv[]) {
 	printf("Listen de la socket.....");
 	int testListen = listen(sockServ, 1);
 	if(testListen == -1) {
+		printf("fail\n");
 		perror("listen()");
 		exit(EXIT_FAILURE);
 	}
@@ -109,7 +112,7 @@ int main(int argc, char const *argv[]) {
 
 			pData[lastFreeId].fileList = (char**)malloc(pData[lastFreeId].nbFile * sizeof(char*));
 
-			// for charque fichier
+			// for chaque fichier
 			for(int i = 0; i < pData[lastFreeId].nbFile; i++) {
 				// recv la taille du nom
 				int nameSize = 0;
@@ -124,8 +127,7 @@ int main(int argc, char const *argv[]) {
 				pData[lastFreeId].fileList[i] = (char*)malloc(nameSize * sizeof(char));
 
 				// recv nom
-
-				testRecv = recv(sockCli, pData[lastFreeId].fileList[i], nameSize, 0);
+				testRecv = myLoopReceiv(sockCli, pData[lastFreeId].fileList[i], nameSize, 0);
 				if(testRecv == -1) {
 					perror("recv()");
 					exit(EXIT_FAILURE);
@@ -134,7 +136,7 @@ int main(int argc, char const *argv[]) {
 				printf("nom du fichier : %s\n",pData[lastFreeId].fileList[i] );
 
 			}
-
+			lastFreeId++;
 		}
 
 		// ****************

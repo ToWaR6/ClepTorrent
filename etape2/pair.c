@@ -8,6 +8,7 @@
 #include <arpa/inet.h> // inet_pton()
 #include <dirent.h>
 #include <string.h>
+#include <pthread.h>
 #include "functionFile.h"
 /*
 1) de  se  connecter  au  serveur,  
@@ -40,7 +41,97 @@ struct pairData {
 			Je le stocke à l'index y(n) de taille t
 */
 
+//argument : port d'ecoute 
+void* serverThread(void* arg) {
 
+	int port = *((int*) arg);
+
+	int dS = socket(AF_INET, SOCK_STREAM, 0);
+	if (dS < 0) {
+		perror("socket()");
+		return NULL;
+	}
+	printf("SERVER : Socket ecoute créée\n");
+	struct sockaddr_in ad;
+	ad.sin_family = AF_INET;
+	ad.sin_addr.s_addr = INADDR_ANY;
+	ad.sin_port = (short) htons(port);
+
+	int err = bind(dS, (struct sockaddr*) &ad, sizeof(ad));
+	if (err < 0) {
+		perror("bind()");
+		close(dS);
+		return NULL;
+	}
+
+	err = listen(dS, 2);
+	if (err < 0) {
+		perror("listen()");
+		close(dS);
+		return NULL;
+	}
+
+
+	// definition var pour le while 1
+	socklen_t soA = sizeof(struct sockaddr_in);
+	int dSClient, sizeName, res, tailleF;
+	char nomFichier[27] = "rsc/"; //------------------- nom dossier en dur dans le code a modifier plus tard ---------------------
+	struct sockaddr_in adClient;
+	struct stat st;
+
+	while (1) {
+		printf("SERVER : attente de client\n");
+		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
+		if (dSClient < 0) {
+			perror("accept ");
+			close(dS);
+			return NULL;
+		}
+
+		if ((err = recv(dSClient, &sizeName, sizeof(int), 0)) < 0) {
+			perror("recv() taille");
+			close(dS);
+			close(dSClient);
+			return NULL;
+		}
+		if ((err = myLoopReceiv(dSClient, &nomFichier[4], sizeName, 0)) < 0) {
+			perror("name_recv()");
+			close(dS);
+			close(dSClient);
+			return NULL;
+		}
+
+		FILE* fp = fopen(nomFichier, "r");
+		if (fp == NULL) {
+			printf("ya pas de fichier %s... connard\n", nomFichier);
+			close(dSClient);
+		} else {
+				if (stat(nomFichier, &st) == 0)
+					tailleF = st.st_size;
+				else{
+					perror("stat() (size)");
+					close(dS);
+					close(dSClient);
+					fclose(fp);
+					return NULL;
+				}
+			
+			if ((err = mySendFile(dSClient, fp, tailleF, nomFichier, sizeName)) < 0) {
+				perror("mySendFile()");
+				close(dS);
+				close(dSClient);
+				return NULL;
+			}
+
+			printf("envoyé\n");
+			fclose(fp);
+			close(dSClient);
+		}
+
+	}
+	
+
+}
 
 int main(int argc, char const *argv[]) {
 	if(argc < 4) {
@@ -121,30 +212,45 @@ int main(int argc, char const *argv[]) {
 
 	//Création de ma socket
 
-	int mySock = socket(AF_INET,SOCK_STREAM,0);
-	if (mySock < 0) {
-		perror("socket()");
-		return -1;
-	}
-	printf("Socket créée\n");
-	struct sockaddr_in ad;
-	ad.sin_family = AF_INET;
-	ad.sin_addr.s_addr = INADDR_ANY;
-	ad.sin_port = (short) htons(atoi(argv[3]));
+	// int mySock = socket(AF_INET,SOCK_STREAM,0);
+	// if (mySock < 0) {
+	// 	perror("socket()");
+	// 	return -1;
+	// }
+	// printf("Socket créée\n");
+	// struct sockaddr_in ad;
+	// ad.sin_family = AF_INET;
+	// ad.sin_addr.s_addr = INADDR_ANY;
+	// ad.sin_port = (short) htons(atoi(argv[3]));
 
-	int err = bind(mySock, (struct sockaddr*)&ad, sizeof(ad));
-	if (err < 0) {
-		perror("bind()");
-		close(mySock);
-		return -1;
-	}
+	// int err = bind(mySock, (struct sockaddr*)&ad, sizeof(ad));
+	// if (err < 0) {
+	// 	perror("bind()");
+	// 	close(mySock);
+	// 	return -1;
+	// }
+
+//// choix ##############################
+
+
+	// int res;
+	// //Envoie du fichier
+	// if((res = send (sockAnnuaire,&ad.sin_port,sizeof(short),0))<0){
+	// 	perror("send() port");
+	// 	return -1;
+	// }
+
 	int res;
+	short port = (short) htons(atoi(argv[3]));
 	//Envoie du fichier
-	if((res = send (sockAnnuaire,&ad.sin_port,sizeof(short),0))<0){
+	if((res = send (sockAnnuaire, &port,sizeof(short),0))<0){
 		perror("send() port");
 		return -1;
 	}
-	printf("Port %d envoyé \n",ad.sin_port);
+
+//// end choix ##########################
+
+	// printf("Port %d envoyé \n",ad.sin_port);
 
 	//Envoie des fichiers du pair
 	if((res=send(sockAnnuaire,&cptFiles,sizeof(int),0))<0){ 
@@ -226,5 +332,14 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("done\n");
 	
+	pthread_t tListen;
+	int portParam = atoi(argv[3]);
+	pthread_create(&tListen, NULL, &serverThread, &portParam);
+	// lancer serverThread
+	// arg : argv[3]
+
+	pthread_join(tListen, (void**) &portParam);
+
 	return 0;
 }
+

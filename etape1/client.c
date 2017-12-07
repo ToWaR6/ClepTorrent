@@ -29,22 +29,37 @@ int main(int argc, char const *argv[]){
 	//Ouverture du fichier
 	FILE* fp = fopen(nomFichier, "r");
 	char q;
+	int resultScan;
 	while(fp==NULL){
 
-		printf("Fichier non-trouvé\n 'q' pour quitter, 'entrée' pour continuer\n");
-	 	q=getchar();
-	 	if(q=='q'){
+		printf("Fichier non-trouvé\n 'q' pour quitter, 'c' pour continuer\n");
+	 	resultScan = scanf(" %c",&q);
+	 	if(resultScan==EOF){
+			perror("scanf réponse\n");
 			return -1;
 		}
-		
-		printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-		if(fgets(&nomFichier[4], 20, stdin)==NULL){
-			perror("fgets nomFichier");
-			return -1;
+		if(resultScan==0){
+			while(fgetc(stdin)!='\n');
 		}
-		strtok(nomFichier, "\n");
-		printf("Recherche du fichier %s\n",nomFichier );
-		fp = fopen(nomFichier,"r");
+		else{
+		 	if(q=='q'){
+				return -1;
+			}
+			else if(q=='c'){
+				printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
+				if((resultScan = scanf(" %20s",&nomFichier[4]))==EOF){
+					perror("scanf nomFichier");
+					return -1;
+				}
+				if(resultScan==0){
+					while(fgetc(stdin)!='\n');
+				}
+				strtok(nomFichier, "\n");
+				printf("Recherche du fichier %s\n",nomFichier );
+				fp = fopen(nomFichier,"r");
+			}
+		}
+
 	}
 
 	printf("\n===========================\n\n");

@@ -15,8 +15,8 @@ struct pairData {
 	char** fileList;
 };
 int newPair(const struct pairData *pData,int nbPair,const struct sockaddr_in *addrCli){
-	unsigned long ipClient = addrCli->sin_addr.s_addr;
-	unsigned long ipPair;
+	int ipClient = addrCli->sin_addr.s_addr;
+	int ipPair;
 
 	unsigned short portClient = addrCli->sin_port;
 	unsigned short portPair;
@@ -24,6 +24,8 @@ int newPair(const struct pairData *pData,int nbPair,const struct sockaddr_in *ad
 	for (int i = 0; i < nbPair; i++){
 		ipPair = pData[i].pair.sin_addr.s_addr;
 		portPair = pData[i].pair.sin_port;
+		// printf("Ip : %d = %d\n",ipPair,ipClient);
+		// printf("Port : %d = %d \n",portPair,portClient );
 		if(portPair==portClient  &&  ipPair==ipClient ){
 			return 0;
 		}
@@ -66,7 +68,7 @@ int main(int argc, char const *argv[]) {
 	printf("done\n");
 
 	printf("Listen de la socket.....");
-	int testListen = listen(sockServ, 1);
+	int testListen = listen(sockServ, 3);
 	if(testListen == -1) {
 		printf("fail\n");
 		perror("listen()");
@@ -77,15 +79,15 @@ int main(int argc, char const *argv[]) {
 	while(1) {
 		printf("En attente d'un client\n");
 		struct sockaddr_in addrCli;
-		socklen_t lenAddrCli;
+		socklen_t lenAddrCli = sizeof(struct sockaddr_in);
 		int sockCli = accept(sockServ, (struct sockaddr*)&addrCli, &lenAddrCli);
 		if(sockCli == -1) {
 			perror("accept()");
 			exit(EXIT_FAILURE);
 		}
-		printf("Un client s'est connecté\n");
 
-		struct sockaddr_in addrCli2 = addrCli;
+		struct sockaddr_in addrCli2;
+		memcpy(&addrCli2,&addrCli,lenAddrCli);
 
 		// ****************
 		// * RECV FICHIER *
@@ -98,11 +100,17 @@ int main(int argc, char const *argv[]) {
 			perror("recv()");
 			exit(EXIT_FAILURE);
 		}
+		char str[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET,&addrCli.sin_addr,str,INET6_ADDRSTRLEN);
+		printf("Le client sera contacté avec %s:%d \n",str,port);
 		addrCli2.sin_port = port;
 		// recv du nombre de fichier
 		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){
 			nbPair++;
-			pData[lastFreeId].pair = addrCli2;
+			pData[lastFreeId].pair.sin_port = addrCli2.sin_port;
+			pData[lastFreeId].pair.sin_addr.s_addr = addrCli2.sin_addr.s_addr;
+			
+			printf("addrCli ip : %d = %d\n",addrCli.sin_addr.s_addr,pData[0].pair.sin_addr.s_addr);
 			testRecv = recv(sockCli, &pData[lastFreeId].nbFile, sizeof(int), 0);
 			if(testRecv == -1) {
 				perror("recv()");

@@ -227,7 +227,7 @@ void *clientThread(void* arg){
 		}
 		else if(reponse == 1){//client
 
-			printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
+			printf("Saisir le nom du fichier que vous voulez recevoir ?\n");
 			if((resultScan = scanf(" %20s",nomFichier))==EOF){
 				perror("scanf nomFichier");
 				pthread_exit(NULL);
@@ -467,7 +467,7 @@ int main(int argc, char const *argv[]) {
 	pthread_create(&tListen1, NULL, &serverThread, &portParam);
 
 	struct paramsThreadClient pT;
-	pT.port = htons(5678);
+	pT.port = htons(portParam);
 	pT.sockAddr = &addrServ;
 	strcpy(pT.dest,argv[5]);
 	pT.nbPair = nbClient;

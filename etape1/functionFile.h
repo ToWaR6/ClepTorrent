@@ -7,7 +7,9 @@
 #include <errno.h>
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
-
+#ifndef DEBUG
+#define DEBUG 1
+#endif
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
 
 void str_replace(char *target, const char *needle, const char *replacement){
@@ -73,7 +75,7 @@ int mySendString(int sockfd, const char *buf, size_t len, int flags){
 	else if (tmp ==0){
 		return 0;
 	}
-	else{
+	else if (DEBUG){
 		printf("\nLe send a envoyé : %d octet(s)\n", tmp);
 		printf("ça correspond à une taille de chaine de %lu caractères\n\n",len );
 	}
@@ -86,7 +88,7 @@ int mySendString(int sockfd, const char *buf, size_t len, int flags){
 	else if (tmp ==0){
 		return 0;
 	}
-	else{
+	else if (DEBUG){
 		printf("\nLe send a envoyé : %d octet(s)\n", tmp);
 		printf("Equivalent à la chaine %s '\\0' compris\n\n",buf );
 	}
@@ -110,7 +112,7 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	if((res=send(sockfd,&len,sizeof(int),0))<0){ 
 		perror("send() taille");
 		return -1;
-	}else{
+	}else if(DEBUG){
 		printf("\nLe premier send a envoyé : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",len );
 	}
@@ -135,10 +137,6 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 		indexFile+=rest;
 		snd =0;
 		while(rest!=0){
-			//print("rest : %d, send : %d\n",rest,snd);
-			if(snd>0){
-				printf("Buff plein");
-			}
 			tmp= send(sockfd,&(ptr[snd]),rest,0);
 			if(tmp==-1){
 				perror("send() ");
@@ -157,15 +155,14 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 
 int myLoopReceiv(int sockfd, char *buf, size_t len, int flags){
 	int rest = len;
-	int alreadyReceiv, tmp = 0;
-
+	int alreadyReceiv = 0;
+	int  tmp = 0;
 	while (rest > 0) {
-		tmp = recv(sockfd, &(buf[alreadyReceiv]), rest, flags);
+		tmp = recv(sockfd, &buf[alreadyReceiv], rest, flags);
 		if (tmp == -1) {
 			perror("loop_receiv");
 			return -1;
 		}
-
 		rest -= tmp;
 		alreadyReceiv += tmp;
 	}
@@ -181,7 +178,7 @@ int myReceivFile(int sockfd) {
 		perror("taille_recv()");
 		return -1;
 	}
-	else{
+	else if(DEBUG){
 		printf("\nLe premier recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",size );
 	}
@@ -189,19 +186,18 @@ int myReceivFile(int sockfd) {
 		perror("taille_recv()");
 		return -1;
 	}
-	else{
+	else if(DEBUG){
 		printf("Le second recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de nom fichier de %d caractères\n\n",lenNameFile );
 	}
 	int tailleBufferNom = lenNameFile+7;
 	char filename[tailleBufferNom];
 	char tmpFilename[lenNameFile];
-
-	if ((res = myLoopReceiv(sockfd, &tmpFilename, lenNameFile, 0)) < 0) {
-		perror("taille_recv()");
+	if ((res = myLoopReceiv(sockfd,tmpFilename, lenNameFile, 0)) < 0) {
+		perror("name_recv()");
 		return -1;
 	}
-	else{
+	else if (DEBUG){
 		printf("Le troisième recv a reçu : %d octet(s)\n", res);
 		printf("Equivalent à la chaine %s '\\0' compris\n\n",tmpFilename );
 	}
@@ -218,11 +214,13 @@ int myReceivFile(int sockfd) {
 
 	int sizeFile = size;
 	int tailleRcv =0;
-
+	int len =1025;
 	printf("Démarrage de la reception du fichier...\n\n");
 	while (size > 0) {
 		printf("Progression %.2lf%%\r", ((double)((double)(sizeFile-size)/sizeFile))*100);
-		if ((res = recv(sockfd, buffer, 1025, 0))<=0) {
+		if(size<1025)
+			len = size;
+		if ((res = myLoopReceiv(sockfd, buffer, len, 0))<=0) {
 			perror("message_recv()");
 			return -1;
 		}

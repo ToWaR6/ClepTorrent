@@ -44,7 +44,59 @@ void str_replace(char *target, const char *needle, const char *replacement)
     strcpy(target, buffer);
 }
 
-int mySend(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
+int myLoopSend(int sockfd, const char *buf, size_t len, int flags){
+	int tmp,rest,haveToSnd;
+	haveToSnd = 0;
+	rest= len;
+	while(rest!=0){
+
+		tmp= send(sockfd,&(buf[haveToSnd]),rest,0);
+		if(tmp==-1){
+			perror("send() ");
+			return(-1);
+		}
+		else if (tmp==0){
+			return 0;
+		}
+		else{
+			haveToSnd+=tmp;
+			rest-=tmp;
+		}
+	}
+	return haveToSnd;
+}
+
+int mySendString(int sockfd, const char *buf, size_t len, int flags){
+	int tmp = send(sockfd,&len,sizeof(int),flags);
+	if(tmp ==-1){
+		perror("Send taille string");
+		return -1;
+	}
+	else if (tmp ==0){
+		return 0;
+	}
+	else{
+		printf("\nLe send a envoyé : %d octet(s)\n", tmp);
+		printf("ça correspond à une taille de chaine de %lu caractères\n\n",len );
+	}
+
+	tmp = myLoopSend(sockfd,buf,len,flags);
+	if(tmp ==-1){
+		perror("Send string");
+		return -1;
+	}
+	else if (tmp ==0){
+		return 0;
+	}
+	else{
+		printf("\nLe send a envoyé : %d octet(s)\n", tmp);
+		printf("Equivalent à la chaine %s '\\0' compris\n\n",buf );
+	}
+	return tmp;
+
+}
+
+int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	//For while send
 	int snd =0;
 	int tmp = 0;
@@ -56,7 +108,6 @@ int mySend(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	int indexFile=0;
 	int rest = 0;
 	int res;
-
 	//Envoie de la taille du fichier	
 	if((res=send(sockfd,&len,sizeof(int),0))<0){ 
 		perror("send() taille");
@@ -66,22 +117,15 @@ int mySend(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 		printf("ça correspond à une taille de fichier de %d octets\n\n",len );
 	}
 
-	//Envoie taille du nom de fichier
-	if((res=send(sockfd,&lenNameFile,sizeof(int),0))<0){
-		perror("send() taillNom");
-		return -1;
-	}else{
-		printf("Le second send a envoyé: %d octet(s)\n", res);
-		printf("ça correspond à une taille de nom fichier de %d caractères\n\n",lenNameFile );
+	res =mySendString(sockfd,nameFile,lenNameFile,0);
+	if(res<0){//Envoie du nom du fichier
+		perror("send() nom");
+		return res;
+	}
+	else if(res == 0){ 
+		return res;
 	}
 
-	if( (res =send(sockfd,nameFile,lenNameFile,0))<0){//Envoie du nom du fichier
-		perror("send() nom");
-		return -1;
-	}else{
-		printf("Le troisième send a envoyé: %d octet(s)\n", res);
-		printf("Equivalent à la chaine %s '\\0' compris\n\n",nameFile );
-	}
 
 	int tailleSend = 0;
 	while(indexFile<len){//Envoie du contenu du fichier
@@ -113,7 +157,7 @@ int mySend(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	return 0;
 }
 
-int myReceiv(int sockfd) {
+int myReceivFile(int sockfd) {
 	int res,lenNameFile;
 	char buffer[1024];
 	char nomFichier;
@@ -176,4 +220,3 @@ int myReceiv(int sockfd) {
 	fclose(fp);
 	return 0;
 }
-

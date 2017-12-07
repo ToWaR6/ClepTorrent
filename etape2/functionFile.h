@@ -8,10 +8,10 @@
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 0
 #endif
-//Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
 
+//Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
 void str_replace(char *target, const char *needle, const char *replacement){
 	char buffer[1024] = { 0 };
 	char *insert_point = &buffer[0];
@@ -117,16 +117,6 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 		printf("ça correspond à une taille de fichier de %d octets\n\n",len );
 	}
 
-	res =mySendString(sockfd,nameFile,lenNameFile,0);
-	if(res<0){//Envoie du nom du fichier
-		perror("send() nom");
-		return res;
-	}
-	else if(res == 0){ 
-		return res;
-	}
-
-
 	int tailleSend = 0;
 	while(indexFile<len){//Envoie du contenu du fichier
 		rest = fread(&ptr,sizeof(char),1024,fp);
@@ -169,7 +159,7 @@ int myLoopReceiv(int sockfd, char *buf, size_t len, int flags){
 	return alreadyReceiv;
 }
 
-int myReceivFile(int sockfd) {
+int myReceivFile(int sockfd,char *dest) {
 	int res,lenNameFile;
 	char buffer[1024];
 	char nomFichier;
@@ -182,30 +172,7 @@ int myReceivFile(int sockfd) {
 		printf("\nLe premier recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",size );
 	}
-	if ((res = recv(sockfd, &lenNameFile, sizeof(int), 0)) < 0) {
-		perror("taille_recv()");
-		return -1;
-	}
-	else if(DEBUG){
-		printf("Le second recv a reçu : %d octet(s)\n", res);
-		printf("ça correspond à une taille de nom fichier de %d caractères\n\n",lenNameFile );
-	}
-	int tailleBufferNom = lenNameFile+7;
-	char filename[tailleBufferNom];
-	char tmpFilename[lenNameFile];
-	if ((res = myLoopReceiv(sockfd,tmpFilename, lenNameFile, 0)) < 0) {
-		perror("name_recv()");
-		return -1;
-	}
-	else if (DEBUG){
-		printf("Le troisième recv a reçu : %d octet(s)\n", res);
-		printf("Equivalent à la chaine %s '\\0' compris\n\n",tmpFilename );
-	}
-	strcpy(filename,tmpFilename);
-	str_replace(filename,".","(copie).");
-	printf("Le fichier %s va maintenant être créé\n",filename );
-
-	FILE* fp = fopen(filename, "w+");
+	FILE* fp = fopen(dest, "w+");
 	if(fp==NULL){
 		perror("fopen()");
 		return -1;

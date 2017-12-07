@@ -8,6 +8,7 @@
 #include <arpa/inet.h> // inet_pton()
 #include <dirent.h>
 #include <string.h>
+#include "functionFile.h"
 /*
 1) de  se  connecter  au  serveur,  
 1-bis ) PORT htons 
@@ -155,18 +156,16 @@ int main(int argc, char const *argv[]) {
 	}
 	int tailleNom = 0;
 	for (int i = 0; i < cptFiles; ++i){
-		fileList[i][strlen(fileList[i])+1]= '\0';
+		fileList[i][strlen(fileList[i])]= '\0';
 		tailleNom = strlen(fileList[i])+1;
-		//Envoie du nombre de caractère
-		if((res=send(sockAnnuaire,&tailleNom,sizeof(int),0))<0){ 
-			perror("send() taille");
-			return -1;
-		}
 
-		//Envoie nom du fichier
-		if ((res=send(sockAnnuaire,&fileList[i],tailleNom,0))<0){
-			perror("send() nomFichier");
-			return -1;
+		res=mySendString(sockAnnuaire,fileList[i],tailleNom,0);
+		if(res<0){
+			perror("mySendString");
+			return res;
+		}
+		else if (res==0){
+			return res;
 		}
 	}
 	/*Boucle de reception annuaire 
@@ -200,7 +199,7 @@ int main(int argc, char const *argv[]) {
 		printf("Nombre de fichiers %d \n",tabClient[i].nbFiles );
 		tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 		for (int j = 0; j < tabClient[i].nbFiles; j++){
-			
+			printf("%d\n", tabClient[i].nbFiles);
 			if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 				perror("recv tailleNom");
 				return -1;
@@ -211,11 +210,14 @@ int main(int argc, char const *argv[]) {
 				perror("recv nomFichier");
 				return -1;
 			}
+			else if(res ==0){
+				return 0;
+			}
 			printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 		}
 	}
 
-	printf("Fermeture de la socket annuaire.....");
+	printf("Fermeture de la socket pair.....");
 	int testClose = close(sockAnnuaire);
 	if(testClose == -1) {
 		printf("fail\n");

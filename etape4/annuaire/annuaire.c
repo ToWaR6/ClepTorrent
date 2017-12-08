@@ -108,8 +108,6 @@ int main(int argc, char const *argv[]) {
 		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){
 			nbPair++;
 			memcpy(&pData[lastFreeId].pair,&addrCli2,lenAddrCli);
-			
-			printf("addrCli ip : %d = %d\n",addrCli.sin_addr.s_addr,pData[0].pair.sin_addr.s_addr);
 			testRecv = recv(sockCli, &pData[lastFreeId].nbFile, sizeof(int), 0);
 			if(testRecv == -1) {
 				perror("recv()");
@@ -139,8 +137,7 @@ int main(int argc, char const *argv[]) {
 					perror("recv()");
 					exit(EXIT_FAILURE);
 				}
-				printf("Reception de %d octets(s),  %d caractères \n", testRecv, nameSize);
-				printf("nom du fichier : %s\n",pData[lastFreeId].fileList[i] );
+				printf("\tnom du fichier[%d]: %s\n",i,pData[lastFreeId].fileList[i] );
 
 			}
 			lastFreeId++;

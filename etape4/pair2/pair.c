@@ -60,7 +60,6 @@ void* serverThread(void* arg) {
 		perror("socket()");
 		pthread_exit(NULL);
 	}
-	printf("SERVER : Socket ecoute créée\n");
 	struct sockaddr_in ad;
 	ad.sin_family = AF_INET;
 	ad.sin_addr.s_addr = INADDR_ANY;
@@ -89,14 +88,12 @@ void* serverThread(void* arg) {
 	struct stat st;
 
 	while (1) {
-		printf("SERVER : attente de client\n");
 		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
 		if (dSClient < 0) {
 			perror("accept ");
 			close(dS);
 			pthread_exit(NULL);
 		}
-		printf("Un nouveau client !\n");
 		if ((err = recv(dSClient, &sizeName, sizeof(int), 0)) < 0) {
 			perror("recv() taille");
 			close(dS);
@@ -112,14 +109,13 @@ void* serverThread(void* arg) {
 
 		FILE* fp = fopen(nomFichier, "r");
 		if (fp == NULL) {
-			printf("ya pas de fichier %s...\n", nomFichier);
+			printf("il n'y a pas de fichier %s...\n", nomFichier);
 			close(dSClient);
 		} else {
 				if (stat(nomFichier, &st) == 0)
 					tailleF = st.st_size;
 				else{
 					perror("stat() (size)");
-					close(dS);
 					close(dSClient);
 					fclose(fp);
 					pthread_exit(NULL);
@@ -201,14 +197,13 @@ void *clientThread(void* arg){
 					perror("recv nbFiles");
 					pthread_exit(NULL);
 				}
-				printf("Nombre de fichiers %d du client %d \n",tabClient[i].nbFiles,i );
+				printf("Le client %d possède %d fichier(s) \n",i,tabClient[i].nbFiles );
 				tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 				for (int j = 0; j < tabClient[i].nbFiles; j++){
 					if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 						perror("recv tailleNom");
 						pthread_exit(NULL);
 					}
-					printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
 					tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
 					if((res = myLoopReceiv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
 						perror("recv nomFichier");
@@ -217,7 +212,7 @@ void *clientThread(void* arg){
 					else if(res==0){
 						pthread_exit(NULL);
 					}
-					printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
+					printf("\tfichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 				}
 			}
 			if(close(sockAnnuaire) == -1) {
@@ -434,15 +429,13 @@ int main(int argc, char const *argv[]) {
 			perror("recv nbFiles");
 			return -1;
 		}
-		printf("Nombre de fichiers %d \n",tabClient[i].nbFiles );
+		printf("Le client %d possède %d fichier(s) \n",i,tabClient[i].nbFiles );
 		tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 		for (int j = 0; j < tabClient[i].nbFiles; j++){
-			printf("%d\n", tabClient[i].nbFiles);
 			if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 				perror("recv tailleNom");
 				return -1;
 			}
-			printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
 			tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
 			if((res = recv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
 				perror("recv nomFichier");
@@ -451,7 +444,7 @@ int main(int argc, char const *argv[]) {
 			else if(res ==0){
 				return 0;
 			}
-			printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
+			printf("\tfichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 		}
 	}
 
@@ -467,7 +460,10 @@ int main(int argc, char const *argv[]) {
 	pthread_t tListen1;
 	pthread_t tListen2;
 	int portParam = atoi(argv[3]);
-	pthread_create(&tListen1, NULL, &serverThread, &portParam);
+	if(pthread_create(&tListen1, NULL, &serverThread, &portParam)!=0){
+		perror("pthread_create - tListen1");
+		return -1;
+	}
 
 	struct paramsThreadClient pT;
 	pT.port = htons(portParam);
@@ -476,12 +472,22 @@ int main(int argc, char const *argv[]) {
 	pT.nbPair = nbClient;
 	pT.tabClient = tabClient;
 
-	pthread_create(&tListen2,NULL,&clientThread,&pT);
+	if(pthread_create(&tListen2,NULL,&clientThread,&pT)){
+		perror("pthread_create - tListen2");
+		return -1;
+	}
 	// lancer serverThread
 	// arg : argv[3]
 
-	pthread_join(tListen1, NULL);
-	pthread_join(tListen2, NULL);
+	/**Je ne vérifie pas que le serveur se coupe a discuter*/
+	// if(pthread_join(tListen1, NULL)){
+	// 	perror("pthread_join - tListen1");
+	// 	return -1;
+	// }
+	if(pthread_join(tListen2, NULL)){
+		perror("pthread_join - tListen2");
+		return -1;
+	}
 	return 0;
 }
 

@@ -8,7 +8,7 @@
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 0
 #endif
 
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c

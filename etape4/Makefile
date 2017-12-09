@@ -1,5 +1,3 @@
-all:
-	@(cd annuaire && $(MAKE))
-	@(cd pair1 && $(MAKE))
-	@(cd pair2 && $(MAKE))
-	@(cd pair3 && $(MAKE))
+prog : annuaire.c pair.c
+	gcc annuaire.c -o annuaire.out
+	gcc pair.c -o pair.out -lpthread

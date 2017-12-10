@@ -202,6 +202,7 @@ int myReceivFile(int sockfd,char *dest) {
 
 		size -= res;
 	}
+	printf("Progression 100%%     \r");
 	printf("\n--Taille effectivement reçu : %d--\n\n",tailleRcv);
 	fclose(fp);
 	return 0;

@@ -233,7 +233,7 @@ void *clientThread(void* arg){
 			reponse = 1;
 		}
 	}while(reponse!=2);
-	printf("Le client est fermé, cependant le coté server reste en écoute, \"Ctrl+c\" pour terminer\n");
+	printf("Le client est fermée\n");
 	pthread_exit(NULL);
 
 }
@@ -425,11 +425,12 @@ int main(int argc, char const *argv[]) {
 		perror("pthread_join - tListen2");
 		return -1;
 	}
-	/**Je ne vérifie pas que le serveur se coupe a discuter*/
-	if(pthread_join(tListen1, NULL)){
-		perror("pthread_join - tListen1");
-		return -1;
-	}
+
+	/**On ne join pas le thread server afin qu'il puisse se fermer en même temps que le client*/
+	// if(pthread_join(tListen1, NULL)){
+	// 	perror("pthread_join - tListen1");
+	// 	return -1;
+	// }
 	return 0;
 }
 

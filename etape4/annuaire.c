@@ -102,7 +102,7 @@ int main(int argc, char const *argv[]) {
 		}
 		char str[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET,&addrCli.sin_addr,str,INET6_ADDRSTRLEN);
-		printf("Le client sera contacté avec %s:%d \n",str,port);
+		printf("Le client sera contacté avec %s:%d \n",str,ntohs(port));
 		addrCli2.sin_port = port;
 		// recv du nombre de fichier
 		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){

@@ -64,7 +64,8 @@ void* serverThread(void* arg) {
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
 	struct sockaddr_in ad;
 	ad.sin_family = AF_INET;
@@ -75,14 +76,16 @@ void* serverThread(void* arg) {
 	if (err < 0) {
 		perror("bind()");
 		close(dS);
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
 
 	err = listen(dS, 2);
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
 
 
@@ -91,7 +94,10 @@ void* serverThread(void* arg) {
 	int dSClient, sizeName, res, tailleF;
 	char nomFichier[256];
 	strcpy(nomFichier,pS->rsc);
-	nomFichier[strlen(pS->rsc)] = '/';
+	if (nomFichier[strlen(pS->rsc)] = '/') {
+		// nomFichier[strlen(pS->rsc)] = '/';
+		strcat(nomFichier, "/");
+	}
 	struct sockaddr_in adClient;
 	struct stat st;
 
@@ -117,7 +123,7 @@ void* serverThread(void* arg) {
 
 		FILE* fp = fopen(nomFichier, "r");
 		if (fp == NULL) {
-			printf("il n'y a pas de fichier %s...\n", nomFichier);
+			printf("il n'y a pas de fichier '%s'...\n", nomFichier);
 			close(dSClient);
 		} else {
 				if (stat(nomFichier, &st) == 0)
@@ -156,7 +162,9 @@ void *clientThread(void* arg){
 	char nomFichier[128];
 	char destination[512];
 	strcpy(destination,pT->dest);
-	destination[strlen(pT->dest)] = '/';
+	if (destination[strlen(pT->dest)-1] != '/') {
+		destination[strlen(pT->dest)] = '/';
+	}
 	//m-aj variables
 	int sockAnnuaire,res,nbClient,tailleNom;
 	nbClient = pT->nbPair;
@@ -241,7 +249,7 @@ void *clientThread(void* arg){
 			strtok(nomFichier, "\n");
 			nomFichier[strlen(nomFichier)] = '\0';
 			strcat(destination,nomFichier);
-			printf("Vous reclamez le fichier %s il sera stocké à l'adresse %s \n",nomFichier,destination );
+			printf("Vous reclamez le fichier '%s' il sera stocké à l'adresse %s \n",nomFichier,destination );
 
 			printf("Quel est le numero du client qui possède ce fichier ? \n");
 			resultScan = scanf("%d",&reponse);
@@ -262,9 +270,10 @@ void *clientThread(void* arg){
 				printf("Socket client crée\n");
 
 				printf("Connexion au client.....\n");
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) == -1) {
-					perror("connect()");
-					pthread_exit(NULL);
+				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) <= 0) {
+					// perror("connect()");
+					// pthread_exit(NULL);
+					printf("Connexion refusé\n");
 				}
 				printf("Client connecté.....\n");
 				res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
@@ -283,7 +292,7 @@ void *clientThread(void* arg){
 					pthread_exit(NULL);
 				}
 				else if (res ==0){
-					printf("Le pair ne semble pas possèder le fichier... désolé\n");
+					printf("Le pair ne semble pas posséder le fichier... désolé\n");
 				}
 				else{
 					printf("Fichier bien reçu\n");
@@ -303,7 +312,7 @@ void *clientThread(void* arg){
 int main(int argc, char const *argv[]) {
 	if(argc < 5) {
 		printf("Usage: %s <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossierSource> <dossierDest> \n", argv[0]);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	//Recupération des fichiers du pair:
@@ -311,7 +320,7 @@ int main(int argc, char const *argv[]) {
 	rep = opendir(argv[4]); 
 	if (rep == NULL){
 		perror("opendir()");
-		exit(-1); 
+		return -1; 
 	}
 	printf("Dossier ouvert\n");
 	struct dirent* fichierLu;
@@ -337,7 +346,7 @@ int main(int argc, char const *argv[]) {
 	}
 	if (closedir(rep) == -1){
 		perror("closedir()");
-		exit(-1);
+		return -1;
 	}
 	//Fin de la récuperation des fichiers du pair
 
@@ -346,7 +355,7 @@ int main(int argc, char const *argv[]) {
 	if(sockAnnuaire == -1) {
 		printf("fail\n");
 		perror("socket()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("done\n");
 
@@ -373,7 +382,7 @@ int main(int argc, char const *argv[]) {
 	if(testConnect == -1) {
 		printf("fail\n");
 		perror("connect()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("Connecté au serveur\n");
 
@@ -461,7 +470,7 @@ int main(int argc, char const *argv[]) {
 	if(testClose == -1) {
 		printf("fail\n");
 		perror("close()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("done\n");
 	

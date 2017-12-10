@@ -209,24 +209,25 @@ void *clientThread(void* arg){
 					perror("socket()");
 					pthread_exit(NULL);
 				}
-				printf("Socket client crée\n");
 
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) == -1) {
-					perror("connect()");
-					pthread_exit(NULL);
+				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) < 0) {
+					// perror("connect()");
+					// pthread_exit(NULL);
+					printf("Connection refusé\n");
+				} else {
+
+					printf("Connecter au client\n");
+					
+					reponse = 1;
+					char c;
+					do {
+						printf("Appuyer sur 'q' pour vous déconnecter de ce client\n");
+						scanf("%c",&c);
+					} while (c!='q');
+					close(sockPair);
+
+					printf("Deconnection\n");
 				}
-
-				printf("Connecter au client\n");
-				
-				reponse = 1;
-				do {
-					printf("Appuyer sur '0' pour vous déconnecter de ce client\n");
-					resultScan = scanf("%d",&reponse);
-				} while (reponse!=0);
-				close(sockPair);
-
-				printf("Deconnection\n");
-
 			}else{
 				printf("Il n'y a pas de client numero %d\n", reponse);
 			}

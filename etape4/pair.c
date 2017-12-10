@@ -38,6 +38,11 @@ struct paramsThreadClient{
 	struct pairData* tabClient;
 
 };
+
+struct paramsThreadServer{
+	int port;
+	char rsc[256];
+};
 /*Boucle de reception annuaire 
 	Je vais recevoir x clients
 	Je créer un tableau de la structure de taille pair_data de taille x
@@ -52,8 +57,9 @@ struct paramsThreadClient{
 
 //argument : port d'ecoute 
 void* serverThread(void* arg) {
-
-	int port = *((int*) arg);
+	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
+	
+	int port = pS->port;
 
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
@@ -83,7 +89,9 @@ void* serverThread(void* arg) {
 	// definition var pour le while 1
 	socklen_t soA = sizeof(struct sockaddr_in);
 	int dSClient, sizeName, res, tailleF;
-	char nomFichier[27] = "rsc/"; //------------------- nom dossier en dur dans le code a modifier plus tard ---------------------
+	char nomFichier[256];
+	strcpy(nomFichier,pS->rsc);
+	nomFichier[strlen(pS->rsc)] = '/';
 	struct sockaddr_in adClient;
 	struct stat st;
 
@@ -100,7 +108,7 @@ void* serverThread(void* arg) {
 			close(dSClient);
 			pthread_exit(NULL);
 		}
-		if ((err = myLoopReceiv(dSClient, &nomFichier[4], sizeName, 0)) < 0) {
+		if ((err = myLoopReceiv(dSClient, &nomFichier[strlen(pS->rsc)+1], sizeName, 0)) < 0) {
 			perror("name_recv()");
 			close(dS);
 			close(dSClient);
@@ -459,14 +467,17 @@ int main(int argc, char const *argv[]) {
 	
 	pthread_t tListen1;
 	pthread_t tListen2;
-	int portParam = atoi(argv[3]);
-	if(pthread_create(&tListen1, NULL, &serverThread, &portParam)!=0){
+	struct paramsThreadServer pS;
+
+	pS.port = atoi(argv[3]);
+	strcpy(pS.rsc,argv[4]);
+	if(pthread_create(&tListen1, NULL, &serverThread, &pS)!=0){
 		perror("pthread_create - tListen1");
 		return -1;
 	}
 
 	struct paramsThreadClient pT;
-	pT.port = htons(portParam);
+	pT.port = htons(pS.port);
 	pT.sockAddr = &addrServ;
 	strcpy(pT.dest,argv[5]);
 	pT.nbPair = nbClient;

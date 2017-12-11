@@ -219,11 +219,19 @@ void *clientThread(void* arg){
 					printf("Connecter au client\n");
 					
 					reponse = 1;
-					char c;
+					char c[1];
 					do {
 						printf("Appuyer sur 'q' pour vous déconnecter de ce client\n");
-						scanf("%c",&c);
-					} while (c!='q');
+						resultScan = scanf("%1s",c);
+						if(resultScan==EOF){
+							perror("scanf réponse\n");
+							pthread_exit(NULL);
+						}
+						if(resultScan==0){
+							while(fgetc(stdin)!='\n');
+						}
+						strtok(c, "\n");
+					} while (c[0]!='q');
 					close(sockPair);
 
 					printf("Deconnection\n");

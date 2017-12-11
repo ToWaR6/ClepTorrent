@@ -10,7 +10,7 @@
 #include "functionFile.h"
 
 int main(int argc, char const *argv[]){
-	if(argc<3){
+	if(argc<3){//Si le nombre d'argument est inférieur à 3 alors print les usages
 		printf("%s -ip -port\n", argv[0]);
 		return -1;
 	}
@@ -18,7 +18,7 @@ int main(int argc, char const *argv[]){
 	
 
 	//Saisir le nom de fichier 
-	char nomFichier[27] = "rsc/";
+	char nomFichier[27] = "rsc/"; //Les fichiers de ressource sont stocké en dur 
 	printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
 	if(fgets(&nomFichier[4], 20, stdin)==NULL){
 		perror("fgets nomFichier");
@@ -27,27 +27,27 @@ int main(int argc, char const *argv[]){
 	strtok(nomFichier, "\n");//Suppression du \n que reçoit fgets
 
 	//Ouverture du fichier
-	FILE* fp = fopen(nomFichier, "r");
+	FILE* fp = fopen(nomFichier, "r");//Ouverture du fichier saisi
 	char q;
 	int resultScan;
-	while(fp==NULL){
+	while(fp==NULL){//Tant que ne trouve pas de fichier
 
 		printf("Fichier non-trouvé\n 'q' pour quitter, 'c' pour continuer\n");
-	 	resultScan = scanf(" %c",&q);
-	 	if(resultScan==EOF){
+	 	resultScan = scanf(" %c",&q);//Scan dans l'entrée standard
+	 	if(resultScan==EOF){//Si Le scanf reçoit EOF alors erreur le programme s'arrête
 			perror("scanf réponse\n");
 			return -1;
 		}
-		if(resultScan==0){
+		if(resultScan==0){//
 			while(fgetc(stdin)!='\n');
 		}
 		else{
-		 	if(q=='q'){
+		 	if(q=='q'){//Si l'utilisateur a tapé q alors l'application se ferme
 				return -1;
 			}
-			else if(q=='c'){
+			else if(q=='c'){ //Si l'utilisateur a tapé c alors l'application continue
 				printf("Saisir le nom du fichier que vous voulez envoyer ?\n");
-				if((resultScan = scanf(" %20s",&nomFichier[4]))==EOF){
+				if((resultScan = scanf(" %20s",&nomFichier[4]))==EOF){//Le nom du fichier est stocké a partir de l'index 4 car nomFichier = "rsc/"
 					perror("scanf nomFichier");
 					return -1;
 				}
@@ -106,7 +106,7 @@ int main(int argc, char const *argv[]){
 	int tailleF;
 	struct stat st;
 	if (stat(nomFichier, &st) == 0)
-		tailleF = st.st_size;
+		tailleF = st.st_size;//Stocke la taille du fichier dans la variable tailleF
 	else{
 		perror("stat() (size)");
 		close(dS);
@@ -125,6 +125,7 @@ int main(int argc, char const *argv[]){
 		return -1;
 	}
 
+	//Fermeture des socket et des fichiers
 	if(fclose(fp)!=0){
 		perror("fclose()");
 		close(dS);

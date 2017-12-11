@@ -11,7 +11,11 @@
 #define DEBUG 1
 #endif
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
-
+/**
+Cette fonction provient du site ci-dessus et permet de remplacer des schémas d'une chaine de caractère avec une autre
+Exemple si l'on demande de remplace '.' dans 'doc.txt' par '(copie).' alors la fonction modifie 'doc.txt' en 'doc(copie).txt'
+	
+**/
 void str_replace(char *target, const char *needle, const char *replacement){
 	char buffer[1024] = { 0 };
 	char *insert_point = &buffer[0];
@@ -43,7 +47,10 @@ void str_replace(char *target, const char *needle, const char *replacement){
 	// write altered string back to target
 	strcpy(target, buffer);
 }
+/**
+	Fonction qui permet l'envoie d'une chaine de caractères en loop afin d'éviter toutes pertes possibles
 
+**/
 int myLoopSend(int sockfd, const char *buf, size_t len, int flags){
 	int tmp,rest,haveToSnd;
 	haveToSnd = 0;
@@ -65,7 +72,9 @@ int myLoopSend(int sockfd, const char *buf, size_t len, int flags){
 	}
 	return haveToSnd;
 }
-
+/**
+	Cette fonction permet d'envoyer la taille puis la chaine de caractère en utilisant myLoopSend
+**/
 int mySendString(int sockfd, const char *buf, size_t len, int flags){
 	int tmp = send(sockfd,&len,sizeof(int),flags);
 	if(tmp ==-1){
@@ -95,7 +104,13 @@ int mySendString(int sockfd, const char *buf, size_t len, int flags){
 	return tmp;
 
 }
-
+/**
+	Cette fonction permet d'envoyer des fichiers, pour cela : 
+	1) Elle envoie le nom du fichier et sa taille avec mySendString
+	2) Elle envoie la taille du fichier ( nombre d'octet)
+	3) elle lit 1024 caractères dans le fichier 
+	4) Elle envoie 1024 caractères  et recommence la lecture du fichier
+**/
 int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	//For while send
 	int snd =0;
@@ -152,7 +167,9 @@ int mySendFile(int sockfd,FILE *fp, int len,char *nameFile,int lenNameFile){
 	printf("\n--Taille effectivement envoyé : %d--\n\n",tailleSend);
 	return 0;
 }
-
+/**
+	myLoopReceiv permet de recevoir des chaines de caractères à l'aide d'une loop
+**/
 int myLoopReceiv(int sockfd, char *buf, size_t len, int flags){
 	int rest = len;
 	int alreadyReceiv = 0;
@@ -168,7 +185,13 @@ int myLoopReceiv(int sockfd, char *buf, size_t len, int flags){
 	}
 	return alreadyReceiv;
 }
-
+/**
+	Cette fonction permet d'envoyer des fichiers, pour cela : 
+	1) Elle reçoit le nom du fichier et sa taille avec mySendString
+	2) Elle reçoit la taille du fichier ( nombre d'octet)
+	3) Elle reçoit 1024 caractères  
+	4) elle écrit 1024 caractères dans le fichier et recommence la reception du fichier
+**/
 int myReceivFile(int sockfd) {
 	int res,lenNameFile;
 	char buffer[1024];

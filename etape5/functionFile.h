@@ -8,7 +8,7 @@
 #include <sys/stat.h>//Taille fichier entre autre
 #include <string.h>
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 0
 #endif
 
 //Stack overflow -- https://stackoverflow.com/questions/32413667/replace-all-occurrences-of-a-substring-in-a-string-in-c
@@ -175,6 +175,7 @@ int myReceivFile(int sockfd,char *dest) {
 		printf("\nLe premier recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",size );
 	}
+	printf("j'ouvre le ficher : %s\n", dest);
 	FILE* fp = fopen(dest, "w+");
 	if(fp==NULL){
 		perror("fopen()");
@@ -205,6 +206,6 @@ int myReceivFile(int sockfd,char *dest) {
 	printf("Progression 100%%     \r");
 	printf("\n--Taille effectivement reçu : %d--\n\n",tailleRcv);
 	fclose(fp);
-	return 0;
+	return tailleRcv;
 }
 

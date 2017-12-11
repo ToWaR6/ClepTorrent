@@ -1,6 +1,6 @@
 Tous les fichiers sont doté de makefile, donc un simple make dans la console devrait permettre de générer les programmes
 
-Etape 1
+Etape 1 : transfert-fichiers
 ==================================
 
 1) Dans la console : 
@@ -23,7 +23,7 @@ Remarque :
 	- Eviter de saisir un nom de fichier vide !
 	- Le fichier téléchargé sera stocké dans le fichier 'rsc' avec comme nom '<nomFichier>(copie).<extension Fichier>'
 
-Etape 2 
+Etape 2 : annuaire-p2p
 ==================================
 1) Dans la console : 
 	make
@@ -38,5 +38,7 @@ ou
 4) Le programme affichera la marche a suivre
 
 Remarque : 
+	- Le dossier source est à passer en paramètre 
+	- 
 
 

@@ -39,9 +39,18 @@ struct paramsThreadClient{
 
 };
 
+struct paramsThreadSendFile{
+	int nbFiles;
+	pthread_mutex_t* tabMutex;
+	char** fileList;
+	char rsc[256];
+	int dSClient;
+
+};
+
 struct paramsThreadServer{
 	int port;
-	char rsc[256];
+	struct paramsThreadSendFile paramsSendFile;
 };
 /*Boucle de reception annuaire 
 	Je vais recevoir x clients
@@ -55,10 +64,76 @@ struct paramsThreadServer{
 			Je le stocke à l'index y(n) de taille t
 */
 
-//argument : port d'ecoute 
+//probleme ferme plus "ds" en cas d'erreur 
+void *sendFileThread(void* arg) {
+	struct paramsThreadSendFile* ps  = (struct paramsThreadSendFile*) arg;
+	int dSClient = ps->dSClient;
+
+
+	char pathFichier[256];
+	strcpy(pathFichier,ps->rsc);
+	struct stat st;
+	int sizeName, tailleF;
+
+	if (recv(dSClient, &sizeName, sizeof(int), 0) < 0) {
+		perror("recv() taille");
+		close(dSClient);
+		pthread_exit(NULL);
+	}
+	char nomFichier[sizeName];
+	if (myLoopReceiv(dSClient, nomFichier, sizeName, 0) < 0) {
+		perror("name_recv()");
+		close(dSClient);
+		pthread_exit(NULL);
+	}
+
+	if (pathFichier[strlen(pathFichier)-1] != '/') {
+		strcat(pathFichier, "/");
+	}
+	strcat(pathFichier, nomFichier);
+
+	int indexMutex;
+	for (int i = 0; i < ps->nbFiles; i++) {
+		if (strcmp(ps->fileList[i], nomFichier)) {
+			indexMutex = i;
+			break;
+		}
+	}
+
+	pthread_mutex_lock(&(ps->tabMutex[indexMutex]));
+
+	FILE* fp = fopen(pathFichier, "r");
+	if (fp == NULL) {
+		printf("il n'y a pas de fichier '%s'...\n", pathFichier);
+		close(dSClient);
+	} else {
+		if (stat(pathFichier, &st) == 0)
+			tailleF = st.st_size;
+		else{
+			perror("stat() (size)");
+			close(dSClient);
+			fclose(fp);
+			pthread_exit(NULL);
+		}
+		
+		if (mySendFile(dSClient, fp, tailleF, pathFichier, sizeName) < 0) {
+			perror("mySendFile()");
+			close(dSClient);
+			pthread_exit(NULL);
+		}
+
+		printf("envoyé\n");
+		fclose(fp);
+		close(dSClient);
+	}
+
+	pthread_mutex_unlock(&(ps->tabMutex[indexMutex]));
+}
+
+
 void* serverThread(void* arg) {
 	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
-	
+	struct paramsThreadSendFile pts = pS->paramsSendFile;
 	int port = pS->port;
 
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
@@ -91,15 +166,8 @@ void* serverThread(void* arg) {
 
 	// definition var pour le while 1
 	socklen_t soA = sizeof(struct sockaddr_in);
-	int dSClient, sizeName, res, tailleF;
-	char nomFichier[256];
-	strcpy(nomFichier,pS->rsc);
-	if (nomFichier[strlen(pS->rsc)-1] != '/') {
-		// nomFichier[strlen(pS->rsc)] = '/';
-		strcat(nomFichier, "/");
-	}
+	int dSClient, sizeName, res;
 	struct sockaddr_in adClient;
-	struct stat st;
 
 	while (1) {
 		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
@@ -108,47 +176,15 @@ void* serverThread(void* arg) {
 			close(dS);
 			pthread_exit(NULL);
 		}
-		if ((err = recv(dSClient, &sizeName, sizeof(int), 0)) < 0) {
-			perror("recv() taille");
-			close(dS);
-			close(dSClient);
-			pthread_exit(NULL);
-		}
-		if ((err = myLoopReceiv(dSClient, &nomFichier[strlen(nomFichier)], sizeName, 0)) < 0) {
-			perror("name_recv()");
-			close(dS);
-			close(dSClient);
-			pthread_exit(NULL);
-		}
 
-		FILE* fp = fopen(nomFichier, "r");
-		if (fp == NULL) {
-			printf("il n'y a pas de fichier '%s'...\n", nomFichier);
-			close(dSClient);
-		} else {
-				if (stat(nomFichier, &st) == 0)
-					tailleF = st.st_size;
-				else{
-					perror("stat() (size)");
-					close(dSClient);
-					fclose(fp);
-					pthread_exit(NULL);
-				}
-			
-			if ((err = mySendFile(dSClient, fp, tailleF, nomFichier, sizeName)) < 0) {
-				perror("mySendFile()");
-				close(dS);
-				close(dSClient);
-				pthread_exit(NULL);
-			}
-
-			printf("envoyé\n");
-			fclose(fp);
-			close(dSClient);
+		pts.dSClient = dSClient;
+		pthread_t threadPair;
+		if(pthread_create(&threadPair, NULL, &sendFileThread, &pts)!=0){
+			perror("pthread_create - sendFileThread");
+			return NULL;
 		}
 
 	}
-	
 
 }
 
@@ -268,7 +304,7 @@ void *clientThread(void* arg){
 					perror("socket()");
 					pthread_exit(NULL);
 				}
-				printf("Socket client crée, client %d:%d\n", tabClient[reponse].pairs.sin_addr.s_addr, ntohs(tabClient[reponse].pairs.sin_port));
+				printf("Socket client crée, client sur port %d\n", ntohs(tabClient[reponse].pairs.sin_port));
 
 				printf("Connexion au client.....\n");
 				if(connect(sockPair, (struct sockaddr*)&(tabClient[reponse].pairs), sizeof(tabClient[reponse].pairs)) == -1) {
@@ -344,7 +380,7 @@ int main(int argc, char const *argv[]) {
 			printf("- %s\n",fileList[index] );
 			index++;
 		}
-			
+
 	}
 	if (closedir(rep) == -1){
 		perror("closedir()");
@@ -475,13 +511,30 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 	printf("done\n");
-	
+
+
 	pthread_t tListen1;
 	pthread_t tListen2;
-	struct paramsThreadServer pS;
 
+	// param w/ mutex part
+	pthread_mutex_t tabMutex [cptFiles];
+	for (int i = 0; i < cptFiles; i++) {
+		pthread_mutex_init(&(tabMutex[i]), NULL);
+	}
+	struct paramsThreadSendFile paramsSendFile;
+	paramsSendFile.nbFiles = cptFiles;
+	paramsSendFile.tabMutex = tabMutex;
+	paramsSendFile.fileList = (char**)malloc(cptFiles * sizeof(char[256]));
+	for (int i = 0; i < cptFiles; i++) {
+		strcpy(paramsSendFile.fileList[i], fileList[i]);
+	}
+	strcpy(paramsSendFile.rsc,argv[4]);
+	// end
+
+	struct paramsThreadServer pS;
 	pS.port = atoi(argv[3]);
-	strcpy(pS.rsc,argv[4]);
+	pS.paramsSendFile = paramsSendFile;
+
 	if(pthread_create(&tListen1, NULL, &serverThread, &pS)!=0){
 		perror("pthread_create - tListen1");
 		return -1;

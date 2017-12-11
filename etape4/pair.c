@@ -94,6 +94,7 @@ void *sendFileThread(void* arg) {
 
 	int indexMutex;
 	for (int i = 0; i < ps->nbFiles; i++) {
+		printf("ps->fileList[i] : %s\n", ps->fileList[i]);
 		if (strcmp(ps->fileList[i], nomFichier)==0) {
 			indexMutex = i;
 			break;
@@ -537,7 +538,7 @@ int main(int argc, char const *argv[]) {
 
 	struct paramsThreadServer pS;
 	pS.port = atoi(argv[3]);
-	memcpy(&pS.paramsSendFile,&paramsSendFile,256*cptFiles);
+	pS.paramsSendFile = paramsSendFile;
 	if(pthread_create(&tListen1, NULL, &serverThread, &pS)!=0){
 		perror("pthread_create - tListen1");
 		return -1;

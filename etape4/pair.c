@@ -44,7 +44,7 @@ struct paramsThreadSendFile{
 	pthread_mutex_t* tabMutex;
 	char rsc[256];
 	int dSClient;
-	char fileList[][256];
+	char **fileList;
 
 };
 
@@ -94,7 +94,7 @@ void *sendFileThread(void* arg) {
 
 	int indexMutex;
 	for (int i = 0; i < ps->nbFiles; i++) {
-		if (strcmp(ps->fileList[i], nomFichier)) {
+		if (strcmp(ps->fileList[i], nomFichier)==0) {
 			indexMutex = i;
 			break;
 		}
@@ -135,7 +135,6 @@ void* serverThread(void* arg) {
 	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
 	struct paramsThreadSendFile pts = pS->paramsSendFile;
 	int port = pS->port;
-
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
@@ -524,17 +523,21 @@ int main(int argc, char const *argv[]) {
 	struct paramsThreadSendFile paramsSendFile;
 	paramsSendFile.nbFiles = cptFiles;
 	paramsSendFile.tabMutex = tabMutex;
-	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
 	for (int i = 0; i < cptFiles; i++) {
-		strcpy(paramsSendFile.fileList[i],fileList[i]);
+		pthread_mutex_init(&(paramsSendFile.tabMutex[i]), NULL);
+	}
+	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
+	paramsSendFile.fileList = (char**)malloc(cptFiles * sizeof(char*));
+	for (int i = 0; i < cptFiles; i++){
+		paramsSendFile.fileList[i] = (char*)malloc(256 * sizeof(char));
+		paramsSendFile.fileList[i] = fileList[i];
 	}
 	strcpy(paramsSendFile.rsc,argv[4]);
 	// end
 
 	struct paramsThreadServer pS;
 	pS.port = atoi(argv[3]);
-	pS.paramsSendFile = paramsSendFile;
-
+	memcpy(&pS.paramsSendFile,&paramsSendFile,256*cptFiles);
 	if(pthread_create(&tListen1, NULL, &serverThread, &pS)!=0){
 		perror("pthread_create - tListen1");
 		return -1;
@@ -563,6 +566,7 @@ int main(int argc, char const *argv[]) {
 		perror("pthread_join - tListen2");
 		return -1;
 	}
+
 	return 0;
 }
 

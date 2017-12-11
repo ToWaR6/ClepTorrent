@@ -11,19 +11,18 @@
 #include <pthread.h>
 #include "functionFile.h"
 /*
-1) de  se  connecter  au  serveur,
-1-bis ) PORT htons
+1) de  se  connecter  au  serveur,  
+1-bis ) PORT htons 
 2)de transmettre à ce dernier la liste des fichiers dont il dispose pour téléchargement par
 d’autres pairs,
 3) de récupérer la liste des pairs connectés au réseau ainsi que la liste des
 fichiers disponibles sur chaque pair distant,
 4) de se connecter à un autre pair
 5) de se déconnecter  de  ce  dernier,
-6)  de  quitter  le  réseau  ou  de  reprendre  au  point
+6)  de  quitter  le  réseau  ou  de  reprendre  au  point  
 3)  pour avoir  accès  à  une  éventuelle  mise  à  jour  de  la  liste  des  pairs  présent
 */
 
-char* nomTelechargement;
 
 struct pairData {
 	struct sockaddr_in pairs;
@@ -37,120 +36,168 @@ struct paramsThreadClient{
 	char dest[256];
 	int nbPair;
 	struct pairData* tabClient;
-	pthread_mutex_t verrou;
-    pthread_cond_t cond;
+
 };
-/*Boucle de reception annuaire
+
+struct paramsThreadSendFile{
+	int nbFiles;
+	pthread_mutex_t* tabMutex;
+	char rsc[256];
+	int dSClient;
+	int nbPair;
+	pthread_mutex_t nbPairMutex;
+	pthread_cond_t condi;
+	char fileList[][256];
+
+};
+
+struct paramsThreadServer{
+	int port;
+	int nbPairMax;
+	struct paramsThreadSendFile paramsSendFile;
+};
+/*Boucle de reception annuaire 
 	Je vais recevoir x clients
 	Je créer un tableau de la structure de taille pair_data de taille x
 	Je boucle sur x
 		Je reçois y le nombre de fichier du client x(n)
 		Je reçois sock_x(n) la socket du client x_(n) que je stocke
-		Je crée un tableau de fileList de taille y
+		Je crée un tableau de fileList de taille y 
 		Je boucle sur y
 			Je reçois la t taille du nom de fichier
 			Je le stocke à l'index y(n) de taille t
 */
 
-//argument : port d'ecoute
-void* serverThread(void* arg) {
+//probleme ferme plus "ds" en cas d'erreur 
+void *sendFileThread(void* arg) {
+	struct paramsThreadSendFile* ps  = (struct paramsThreadSendFile*) arg;
+	int dSClient = ps->dSClient;
 
-	struct paramsThreadClient* pT  = (struct paramsThreadClient*) arg;
+
+	char pathFichier[256];
+	strcpy(pathFichier,ps->rsc);
+	struct stat st;
+	int sizeName, tailleF;
+
+	if (recv(dSClient, &sizeName, sizeof(int), 0) < 0) {
+		perror("recv() taille");
+		close(dSClient);
+		pthread_exit(NULL);
+	}
+	char nomFichier[sizeName];
+	if (myLoopReceiv(dSClient, nomFichier, sizeName, 0) < 0) {
+		perror("name_recv()");
+		close(dSClient);
+		pthread_exit(NULL);
+	}
+
+	if (pathFichier[strlen(pathFichier)-1] != '/') {
+		strcat(pathFichier, "/");
+	}
+	strcat(pathFichier, nomFichier);
+
+	int indexMutex;
+	for (int i = 0; i < ps->nbFiles; i++) {
+		if (strcmp(ps->fileList[i], nomFichier)) {
+			indexMutex = i;
+			break;
+		}
+	}
+
+	pthread_mutex_lock(&(ps->tabMutex[indexMutex]));
+
+	FILE* fp = fopen(pathFichier, "r");
+	if (fp == NULL) {
+		printf("il n'y a pas de fichier '%s'...\n", pathFichier);
+		close(dSClient);
+	} else {
+		if (stat(pathFichier, &st) == 0)
+			tailleF = st.st_size;
+		else{
+			perror("stat() (size)");
+			close(dSClient);
+			fclose(fp);
+			pthread_exit(NULL);
+		}
+		
+		if (mySendFile(dSClient, fp, tailleF, pathFichier, sizeName) < 0) {
+			perror("mySendFile()");
+			close(dSClient);
+			pthread_exit(NULL);
+		}
+
+		printf("envoyé\n");
+		fclose(fp);
+		close(dSClient);
+	}
+
+	pthread_mutex_unlock(&(ps->tabMutex[indexMutex]));
+	pthread_mutex_lock(&(ps->nbPairMutex));
+	ps->nbPair-=1;
+	pthread_mutex_lock(&(ps->nbPairMutex));
+}
+
+
+void* serverThread(void* arg) {
+	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
+	struct paramsThreadSendFile pts = pS->paramsSendFile;
+	int port = pS->port;
 
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
-	printf("SERVER : Socket ecoute créée\n");
 	struct sockaddr_in ad;
 	ad.sin_family = AF_INET;
 	ad.sin_addr.s_addr = INADDR_ANY;
-	ad.sin_port = (short) htons(pT->port);
+	ad.sin_port = (short) htons(port);
 
 	int err = bind(dS, (struct sockaddr*) &ad, sizeof(ad));
 	if (err < 0) {
 		perror("bind()");
 		close(dS);
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
 
 	err = listen(dS, 2);
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
-		pthread_exit(NULL);
+		// pthread_exit(NULL);
+		exit(EXIT_FAILURE);
 	}
 
 
 	// definition var pour le while 1
 	socklen_t soA = sizeof(struct sockaddr_in);
-	int dSClient, sizeName, res, tailleF;
-	char nomFichier[27] = "rsc/"; //------------------- nom dossier en dur dans le code a modifier plus tard ---------------------
+	int dSClient, sizeName, res;
 	struct sockaddr_in adClient;
-	struct stat st;
 
 	while (1) {
-		printf("SERVER : attente de client\n");
-		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA) ;
+		while(pS->paramsSendFile.nbPair>pS->nbPairMax){
+			pthread_cond_wait(&pS->paramsSendFile.condi,&pS->paramsSendFile.nbPairMutex);
+		}
+		pS->paramsSendFile.nbPair+=1;
+		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA);
+
 		if (dSClient < 0) {
 			perror("accept ");
 			close(dS);
 			pthread_exit(NULL);
 		}
-		printf("Un nouveau client !\n");
-		if ((err = recv(dSClient, &sizeName, sizeof(int), 0)) < 0) {
-			perror("recv() taille");
-			close(dS);
-			close(dSClient);
-			pthread_exit(NULL);
+
+		pts.dSClient = dSClient;
+		pthread_t threadPair;
+		if(pthread_create(&threadPair, NULL, &sendFileThread, &pts)!=0){
+			perror("pthread_create - sendFileThread");
+			return NULL;
 		}
-		if ((err = myLoopReceiv(dSClient, &nomFichier[4], sizeName, 0)) < 0) {
-			perror("name_recv()");
-			close(dS);
-			close(dSClient);
-			pthread_exit(NULL);
-		}
-
-		pthread_mutex_lock(&pT->verrou);
-
-		while(strcmp(nomTelechargement, nomFichier) == 0) {
-			pthread_cond_wait(&pT->cond, &pT->verrou);
-		}
-
-		FILE* fp = fopen(nomFichier, "r");
-		if (fp == NULL) {
-			printf("ya pas de fichier %s...\n", nomFichier);
-			pthread_mutex_unlock(&pT->verrou);
-			close(dSClient);
-		} else {
-				if (stat(nomFichier, &st) == 0)
-					tailleF = st.st_size;
-				else{
-					perror("stat() (size)");
-					close(dS);
-					close(dSClient);
-					fclose(fp);
-					pthread_mutex_unlock(&pT->verrou);
-					pthread_exit(NULL);
-				}
-
-			if ((err = mySendFile(dSClient, fp, tailleF, nomFichier, sizeName)) < 0) {
-				perror("mySendFile()");
-				close(dS);
-				close(dSClient);
-				pthread_mutex_unlock(&pT->verrou);
-				pthread_exit(NULL);
-			}
-			pthread_mutex_unlock(&pT->verrou);
-
-			printf("envoyé\n");
-			fclose(fp);
-			close(dSClient);
-		}
+		pthread_mutex_unlock(&pS->paramsSendFile.nbPairMutex);
 
 	}
-
 
 }
 
@@ -164,7 +211,10 @@ void *clientThread(void* arg){
 	char nomFichier[128];
 	char destination[512];
 	strcpy(destination,pT->dest);
-	destination[strlen(pT->dest)] = '/';
+	if (destination[strlen(pT->dest)-1] != '/') {
+		// destination[strlen(pT->dest)] = '/';
+		strcat(destination, "/");
+	}
 	//m-aj variables
 	int sockAnnuaire,res,nbClient,tailleNom;
 	nbClient = pT->nbPair;
@@ -213,14 +263,13 @@ void *clientThread(void* arg){
 					perror("recv nbFiles");
 					pthread_exit(NULL);
 				}
-				printf("Nombre de fichiers %d du client %d \n",tabClient[i].nbFiles,i );
+				printf("Le client %d possède %d fichier(s) \n",i,tabClient[i].nbFiles );
 				tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 				for (int j = 0; j < tabClient[i].nbFiles; j++){
 					if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 						perror("recv tailleNom");
 						pthread_exit(NULL);
 					}
-					printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
 					tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
 					if((res = myLoopReceiv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
 						perror("recv nomFichier");
@@ -229,7 +278,7 @@ void *clientThread(void* arg){
 					else if(res==0){
 						pthread_exit(NULL);
 					}
-					printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
+					printf("\tfichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 				}
 			}
 			if(close(sockAnnuaire) == -1) {
@@ -244,26 +293,18 @@ void *clientThread(void* arg){
 				perror("scanf nomFichier");
 				pthread_exit(NULL);
 			}
-
 			if(resultScan==0){
 				while(fgetc(stdin)!='\n');
 			}
 			strtok(nomFichier, "\n");
 			nomFichier[strlen(nomFichier)] = '\0';
 			strcat(destination,nomFichier);
-			pthread_mutex_lock(&pT->verrou);
-			nomTelechargement = nomFichier;
-			pthread_mutex_unlock(&pT->verrou);
-			printf("Vous reclamez le fichier %s il sera stocké à l'adresse %s \n",nomFichier,destination );
+			printf("Vous reclamez le fichier '%s' il sera stocké à l'adresse %s \n",nomFichier,destination );
 
 			printf("Quel est le numero du client qui possède ce fichier ? \n");
 			resultScan = scanf("%d",&reponse);
 			if(resultScan==EOF){
 				perror("scanf réponse\n");
-				pthread_mutex_lock(&pT->verrou);
-				nomTelechargement = "";
-				pthread_cond_broadcast(&pT->cond);
-				pthread_mutex_unlock(&pT->verrou);
 				pthread_exit(NULL);
 			}
 			if(resultScan==0){
@@ -274,72 +315,45 @@ void *clientThread(void* arg){
 				if(sockPair == -1) {
 					printf("fail\n");
 					perror("socket()");
-					pthread_mutex_lock(&pT->verrou);
-					nomTelechargement = "";
-					pthread_cond_broadcast(&pT->cond);
-					pthread_mutex_unlock(&pT->verrou);
 					pthread_exit(NULL);
 				}
-				printf("Socket client crée\n");
+				printf("Socket client crée, client sur port %d\n", ntohs(tabClient[reponse].pairs.sin_port));
 
 				printf("Connexion au client.....\n");
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) == -1) {
-					perror("connect()");
-					pthread_mutex_lock(&pT->verrou);
-					nomTelechargement = "";
-					pthread_cond_broadcast(&pT->cond);
-					pthread_mutex_unlock(&pT->verrou);
-					pthread_exit(NULL);
-				}
-				printf("Client connecté.....\n");
+				if(connect(sockPair, (struct sockaddr*)&(tabClient[reponse].pairs), sizeof(tabClient[reponse].pairs)) == -1) {
+					// perror("connect()");
+					// pthread_exit(NULL);
+					printf("Connexion refusé\n");
+				} else {
+					printf("Client connecté.....\n");
+					res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
+					if(res<0){
+						perror("mySendString");
+						pthread_exit(NULL);
+					}
+					else if (res==0){
+						pthread_exit(NULL);
+					}
 
-				res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
-
-				if(res<0){
-					perror("mySendString");
-					pthread_mutex_lock(&pT->verrou);
-					nomTelechargement = "";
-					pthread_cond_broadcast(&pT->cond);
-					pthread_mutex_unlock(&pT->verrou);
-					pthread_exit(NULL);
+					res = myReceivFile(sockPair,destination);
+					if (res == -1) {
+						perror("ERREUR myReceivFile");
+						close(sockPair);
+						pthread_exit(NULL);
+					}
+					else if (res ==0){
+						printf("Le pair ne semble pas posséder le fichier... désolé\n");
+					}
+					else{
+						printf("Fichier bien reçu\n");
+					}
+					strcpy(destination,pT->dest);
+					destination[strlen(pT->dest)] = '/';
 				}
-				else if (res==0){
-					pthread_mutex_lock(&pT->verrou);
-					nomTelechargement = "";
-					pthread_cond_broadcast(&pT->cond);
-					pthread_mutex_unlock(&pT->verrou);
-					pthread_exit(NULL);
-				}
-
-				res = myReceivFile(sockPair,destination);
-
-				if (res == -1) {
-					perror("ERREUR myReceivFile");
-					close(sockPair);
-					pthread_mutex_lock(&pT->verrou);
-					nomTelechargement = "";
-					pthread_cond_broadcast(&pT->cond);
-					pthread_mutex_unlock(&pT->verrou);
-					pthread_exit(NULL);
-				}
-				else if (res ==0){
-					printf("Le pair ne semble pas possèder le fichier... désolé\n");
-				}
-				else{
-					printf("Fichier bien reçu\n");
-				}
-
-				pthread_mutex_lock(&pT->verrou);
-				nomTelechargement = "";
-				pthread_cond_broadcast(&pT->cond);
-				pthread_mutex_unlock(&pT->verrou);
-
-				memset(destination,'\0',512);
-				strcpy(destination,pT->dest);
-				destination[strlen(pT->dest)] = '/';
 			}else{
 				printf("Il n'y a pas autant de client\n");
 			}
+			memset(destination,'\0',512);
 			reponse = 1;
 		}
 	}while(reponse!=2);
@@ -347,17 +361,17 @@ void *clientThread(void* arg){
 
 }
 int main(int argc, char const *argv[]) {
-	if(argc < 7) {
-		printf("Usage: %s <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossierSource> <dossierDest> <nbMaxParallele> \n", argv[0]);
-		exit(EXIT_FAILURE);
+	if(argc < 6) {
+		printf("Usage: %s <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossierSource> <dossierDest> <nbPairMax> \n", argv[0]);
+		return -1;
 	}
 
 	//Recupération des fichiers du pair:
 	DIR* rep = NULL;
-	rep = opendir(argv[4]);
+	rep = opendir(argv[4]); 
 	if (rep == NULL){
 		perror("opendir()");
-		exit(-1);
+		return -1; 
 	}
 	printf("Dossier ouvert\n");
 	struct dirent* fichierLu;
@@ -383,7 +397,7 @@ int main(int argc, char const *argv[]) {
 	}
 	if (closedir(rep) == -1){
 		perror("closedir()");
-		exit(-1);
+		return -1;
 	}
 	//Fin de la récuperation des fichiers du pair
 
@@ -392,7 +406,7 @@ int main(int argc, char const *argv[]) {
 	if(sockAnnuaire == -1) {
 		printf("fail\n");
 		perror("socket()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("done\n");
 
@@ -404,13 +418,13 @@ int main(int argc, char const *argv[]) {
 		if(inet_pton(AF_INET,"127.0.0.1",&addrServ.sin_addr)<0){//IP adress
 			perror("inet_pton()");
 			return -1;
-		}
+		} 
 		printf("Tentative de connexion au serveur 127.0.0.1:%s\n",argv[2] );
 	}else{
 		if(inet_pton(AF_INET,argv[1],&addrServ.sin_addr)<0){//IP adress
 			perror("inet_pton()");
 			return -1;
-		}
+		} 
 		printf("Tentative de connexion au serveur %s:%s\n",argv[1],argv[2] );
 	}
 
@@ -419,7 +433,7 @@ int main(int argc, char const *argv[]) {
 	if(testConnect == -1) {
 		printf("fail\n");
 		perror("connect()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("Connecté au serveur\n");
 
@@ -434,7 +448,7 @@ int main(int argc, char const *argv[]) {
 	// printf("Port %d envoyé \n",ad.sin_port);
 
 	//Envoie des fichiers du pair
-	if((res=send(sockAnnuaire,&cptFiles,sizeof(int),0))<0){
+	if((res=send(sockAnnuaire,&cptFiles,sizeof(int),0))<0){ 
 		perror("send() taille");
 		return -1;
 	}else{
@@ -455,13 +469,13 @@ int main(int argc, char const *argv[]) {
 			return res;
 		}
 	}
-	/*Boucle de reception annuaire
+	/*Boucle de reception annuaire 
 		Je vais recevoir x clients
 		Je créer un tableau de la structure de taille pair_data de taille x
 		Je boucle sur x
 			Je reçois y le nombre de fichier du client x(n)
 			Je reçois sock_x(n) la socket du client x_(n) que je stocke
-			Je crée un tableau de fileList de taille y
+			Je crée un tableau de fileList de taille y 
 			Je boucle sur y
 				Je reçois la t taille du nom de fichier
 				Je le stocke à l'index y(n) de taille t
@@ -483,15 +497,13 @@ int main(int argc, char const *argv[]) {
 			perror("recv nbFiles");
 			return -1;
 		}
-		printf("Nombre de fichiers %d \n",tabClient[i].nbFiles );
+		printf("Le client %d possède %d fichier(s) \n",i,tabClient[i].nbFiles );
 		tabClient[i].fileList = (char**)malloc(tabClient[i].nbFiles * sizeof(char*));
 		for (int j = 0; j < tabClient[i].nbFiles; j++){
-			printf("%d\n", tabClient[i].nbFiles);
 			if ((res = recv(sockAnnuaire, &tailleNom, sizeof(int), 0)) < 0) {
 				perror("recv tailleNom");
 				return -1;
 			}
-			printf("Nombre de caractères du fichier %d : %d\n",j,tailleNom );
 			tabClient[i].fileList[j] = (char*)malloc(tailleNom * sizeof(char));
 			if((res = recv(sockAnnuaire, tabClient[i].fileList[j], tailleNom, 0)) < 0) {
 				perror("recv nomFichier");
@@ -500,7 +512,7 @@ int main(int argc, char const *argv[]) {
 			else if(res ==0){
 				return 0;
 			}
-			printf("fichier[%d] :%s\n", j,tabClient[i].fileList[j]);
+			printf("\tfichier[%d] :%s\n", j,tabClient[i].fileList[j]);
 		}
 	}
 
@@ -509,35 +521,65 @@ int main(int argc, char const *argv[]) {
 	if(testClose == -1) {
 		printf("fail\n");
 		perror("close()");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	printf("done\n");
 
-	struct paramsThreadClient pT;
-	pthread_cond_init(&pT.cond, NULL);
-    pthread_mutex_init(&pT.verrou, NULL);
-	pT.port = atoi(argv[3]);
 
-	pthread_t tListenN[atoi(argv[6])];
-	for(int i = 0; i < atoi(argv[6]); i++) {
-		pthread_create(&tListenN[i], NULL, &serverThread, &pT);
+	pthread_t tListen1;
+	pthread_t tListen2;
+
+	// param w/ mutex part
+	pthread_mutex_t tabMutex [cptFiles];
+	for (int i = 0; i < cptFiles; i++) {
+		pthread_mutex_init(&(tabMutex[i]), NULL);
+	}
+	struct paramsThreadSendFile paramsSendFile;
+	paramsSendFile.nbFiles = cptFiles;
+	paramsSendFile.tabMutex = tabMutex;
+	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
+	for (int i = 0; i < cptFiles; i++) {
+		strcpy(paramsSendFile.fileList[i],fileList[i]);
+	}
+	strcpy(paramsSendFile.rsc,argv[4]);
+	// end
+	pthread_mutex_init(&paramsSendFile.nbPairMutex, NULL);
+	pthread_cond_init(&paramsSendFile.condi,NULL);
+	paramsSendFile.nbPair = 0;
+	struct paramsThreadServer pS;
+	pS.port = atoi(argv[3]);
+	pS.nbPairMax = atoi(argv[6]);
+	pS.paramsSendFile = paramsSendFile;
+
+
+	if(pthread_create(&tListen1, NULL, &serverThread, &pS)!=0){
+		perror("pthread_create - tListen1");
+		return -1;
 	}
 
-	pT.port = htons(atoi(argv[3]));
+	struct paramsThreadClient pT;
+	pT.port = htons(pS.port);
 	pT.sockAddr = &addrServ;
 	strcpy(pT.dest,argv[5]);
 	pT.nbPair = nbClient;
 	pT.tabClient = tabClient;
 
-	pthread_t tListen2;
-	pthread_create(&tListen2,NULL,&clientThread,&pT);
+	if(pthread_create(&tListen2,NULL,&clientThread,&pT)){
+		perror("pthread_create - tListen2");
+		return -1;
+	}
 	// lancer serverThread
 	// arg : argv[3]
 
-	for(int i = 0; i < atoi(argv[6]); i++) {
-		pthread_join(tListenN[i], NULL);
+	/**Je ne vérifie pas que le serveur se coupe a discuter*/
+	// if(pthread_join(tListen1, NULL)){
+	// 	perror("pthread_join - tListen1");
+	// 	return -1;
+	// }
+	if(pthread_join(tListen2, NULL)){
+		perror("pthread_join - tListen2");
+		return -1;
 	}
-
-	pthread_join(tListen2, NULL);
 	return 0;
 }
+

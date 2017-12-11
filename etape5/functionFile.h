@@ -175,7 +175,6 @@ int myReceivFile(int sockfd,char *dest) {
 		printf("\nLe premier recv a reçu : %d octet(s)\n", res);
 		printf("ça correspond à une taille de fichier de %d octets\n\n",size );
 	}
-	printf("j'ouvre le ficher : %s\n", dest);
 	FILE* fp = fopen(dest, "w+");
 	if(fp==NULL){
 		perror("fopen()");
@@ -206,6 +205,6 @@ int myReceivFile(int sockfd,char *dest) {
 	printf("Progression 100%%     \r");
 	printf("\n--Taille effectivement reçu : %d--\n\n",tailleRcv);
 	fclose(fp);
-	return tailleRcv;
+	return 0;
 }
 

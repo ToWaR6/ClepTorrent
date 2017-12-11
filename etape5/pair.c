@@ -47,7 +47,7 @@ struct paramsThreadSendFile{
 	int nbPair;
 	pthread_mutex_t nbPairMutex;
 	pthread_cond_t condi;
-	char fileList[][256];
+	char **fileList;
 
 };
 
@@ -158,7 +158,6 @@ void* serverThread(void* arg) {
 	if (err < 0) {
 		perror("bind()");
 		close(dS);
-		// pthread_exit(NULL);
 		exit(EXIT_FAILURE);
 	}
 
@@ -166,7 +165,6 @@ void* serverThread(void* arg) {
 	if (err < 0) {
 		perror("listen()");
 		close(dS);
-		// pthread_exit(NULL);
 		exit(EXIT_FAILURE);
 	}
 
@@ -539,7 +537,13 @@ int main(int argc, char const *argv[]) {
 	paramsSendFile.tabMutex = tabMutex;
 	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
 	for (int i = 0; i < cptFiles; i++) {
-		strcpy(paramsSendFile.fileList[i],fileList[i]);
+		pthread_mutex_init(&(paramsSendFile.tabMutex[i]), NULL);
+	}
+	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
+	paramsSendFile.fileList = (char**)malloc(cptFiles * sizeof(char*));
+	for (int i = 0; i < cptFiles; i++){
+		paramsSendFile.fileList[i] = (char*)malloc(256 * sizeof(char));
+		paramsSendFile.fileList[i] = fileList[i];
 	}
 	strcpy(paramsSendFile.rsc,argv[4]);
 	// end

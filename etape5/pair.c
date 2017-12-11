@@ -44,7 +44,7 @@ struct paramsThreadSendFile{
 	pthread_mutex_t* tabMutex;
 	char rsc[256];
 	int dSClient;
-	int nbPair;
+	int *nbPair;
 	pthread_mutex_t nbPairMutex;
 	pthread_cond_t condi;
 	char **fileList;
@@ -131,10 +131,10 @@ void *sendFileThread(void* arg) {
 		close(dSClient);
 	}
 
+	pthread_mutex_lock(&(ps->nbPairMutex));
+	*ps->nbPair-= 1;
+	pthread_mutex_unlock(&(ps->nbPairMutex));
 	pthread_mutex_unlock(&(ps->tabMutex[indexMutex]));
-	pthread_mutex_lock(&(ps->nbPairMutex));
-	ps->nbPair-=1;
-	pthread_mutex_lock(&(ps->nbPairMutex));
 }
 
 
@@ -142,11 +142,9 @@ void* serverThread(void* arg) {
 	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
 	struct paramsThreadSendFile pts = pS->paramsSendFile;
 	int port = pS->port;
-
 	int dS = socket(AF_INET, SOCK_STREAM, 0);
 	if (dS < 0) {
 		perror("socket()");
-		// pthread_exit(NULL);
 		exit(EXIT_FAILURE);
 	}
 	struct sockaddr_in ad;
@@ -156,11 +154,10 @@ void* serverThread(void* arg) {
 
 	int err = bind(dS, (struct sockaddr*) &ad, sizeof(ad));
 	if (err < 0) {
-		perror("bind()");
+		perror("bind() here");
 		close(dS);
 		exit(EXIT_FAILURE);
 	}
-
 	err = listen(dS, 2);
 	if (err < 0) {
 		perror("listen()");
@@ -175,11 +172,12 @@ void* serverThread(void* arg) {
 	struct sockaddr_in adClient;
 
 	while (1) {
-		while(pS->paramsSendFile.nbPair>pS->nbPairMax){
+		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA);
+		pthread_mutex_lock(&pS->paramsSendFile.nbPairMutex);
+		while(*(pS->paramsSendFile.nbPair)>pS->nbPairMax){
 			pthread_cond_wait(&pS->paramsSendFile.condi,&pS->paramsSendFile.nbPairMutex);
 		}
-		pS->paramsSendFile.nbPair+=1;
-		dSClient = accept(dS, (struct sockaddr *) &adClient, &soA);
+		*pts.nbPair+=1;
 
 		if (dSClient < 0) {
 			perror("accept ");
@@ -188,10 +186,11 @@ void* serverThread(void* arg) {
 		}
 
 		pts.dSClient = dSClient;
+		pts.nbPair = pS->paramsSendFile.nbPair;
 		pthread_t threadPair;
 		if(pthread_create(&threadPair, NULL, &sendFileThread, &pts)!=0){
 			perror("pthread_create - sendFileThread");
-			return NULL;
+			pthread_exit(NULL);
 		}
 		pthread_mutex_unlock(&pS->paramsSendFile.nbPairMutex);
 
@@ -549,7 +548,9 @@ int main(int argc, char const *argv[]) {
 	// end
 	pthread_mutex_init(&paramsSendFile.nbPairMutex, NULL);
 	pthread_cond_init(&paramsSendFile.condi,NULL);
-	paramsSendFile.nbPair = 0;
+	
+	paramsSendFile.nbPair = (int*)malloc(sizeof(int*) );
+	*paramsSendFile.nbPair = 0;
 	struct paramsThreadServer pS;
 	pS.port = atoi(argv[3]);
 	pS.nbPairMax = atoi(argv[6]);

@@ -114,7 +114,7 @@ void* serverThread(void* arg) {
 			close(dSClient);
 			pthread_exit(NULL);
 		}
-		if ((err = myLoopReceiv(dSClient, &nomFichier[strlen(pS->rsc)+1], sizeName, 0)) < 0) {
+		if ((err = myLoopReceiv(dSClient, &nomFichier[strlen(nomFichier)], sizeName, 0)) < 0) {
 			perror("name_recv()");
 			close(dS);
 			close(dSClient);
@@ -268,10 +268,10 @@ void *clientThread(void* arg){
 					perror("socket()");
 					pthread_exit(NULL);
 				}
-				printf("Socket client crée, client %s:%s\n", tabClient[reponse].pairs.sin_addr.s_addr, ntohs(tabClient[reponse].pairs.sin_port));
+				printf("Socket client crée, client %d:%d\n", tabClient[reponse].pairs.sin_addr.s_addr, ntohs(tabClient[reponse].pairs.sin_port));
 
 				printf("Connexion au client.....\n");
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse].pairs, sizeof(tabClient[reponse].pairs)) <= 0) {
+				if(connect(sockPair, (struct sockaddr*)&(tabClient[reponse].pairs), sizeof(tabClient[reponse].pairs)) == -1) {
 					// perror("connect()");
 					// pthread_exit(NULL);
 					printf("Connexion refusé\n");

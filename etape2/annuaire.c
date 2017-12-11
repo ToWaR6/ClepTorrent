@@ -7,13 +7,24 @@
 #include <sys/socket.h> // socket(), bind(), listen(), accept(), recv(), send()
 #include <netinet/in.h> // sockaddr_in
 #include <arpa/inet.h> // inet_pton()
+
 #include "functionFile.h"
 
+// structure pour stocker les informations de connexion d'un client
 struct pairData {
-	struct sockaddr_in pair;
-	int nbFile;
-	char** fileList;
+	struct sockaddr_in pair; // adresse et port du pair
+	int nbFile; // nombre de fichier qu'il possède
+	char** fileList; // liste des nom de fichier
 };
+
+/*
+ * Test si un client en bien nouveau et n'existe pas encore dans le tableau de pairData
+ *    pairData -> tableau de structure pour stocket les informations de connexion d'un client
+ *    nbPair   -> nombre de pair deja connecte et enregistre
+ *    addrCli  -> adresse du client qui tente de se connecter
+ *
+ *    retourne 1 si le client est nouveau 0 sinon
+ */
 int newPair(const struct pairData *pData,int nbPair,const struct sockaddr_in *addrCli){
 	int ipClient = addrCli->sin_addr.s_addr;
 	int ipPair;
@@ -32,6 +43,7 @@ int newPair(const struct pairData *pData,int nbPair,const struct sockaddr_in *ad
 	}
 	return 1;
 }
+
 int main(int argc, char const *argv[]) {
 	if(argc < 3) {
 		printf("Usage: %s <PORT> <nbPairMax>\n", argv[0]);
@@ -40,10 +52,11 @@ int main(int argc, char const *argv[]) {
 
 	// variable du serveur
 	int nbMaxPair = atoi(argv[2]);
-	struct pairData pData[nbMaxPair];
-	int nbPair = 0;
+	struct pairData pData[nbMaxPair]; // tableau de structure des pairs
+	int nbPair = 0; // nombre de pair connecté actuellement
 	int lastFreeId = 0;
 
+	// création de la socket serveur
 	printf("Creation de la socket.....");
 	int sockServ = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockServ == -1) {
@@ -53,6 +66,7 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("done\n");
 
+	// bind de la socket serveur
 	struct sockaddr_in addrServ;
 	addrServ.sin_family = AF_INET;
 	addrServ.sin_port = htons(atoi(argv[1]));
@@ -67,6 +81,7 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("done\n");
 
+	// mise sur ecoute de la socket serveur
 	printf("Listen de la socket.....");
 	int testListen = listen(sockServ, 3);
 	if(testListen == -1) {
@@ -76,9 +91,11 @@ int main(int argc, char const *argv[]) {
 	}
 	printf("done\n");
 
+	// boucle principale du serveur annuaire
 	while(1) {
+		// attente d'un client sur un accept
 		printf("En attente d'un client\n");
-		struct sockaddr_in addrCli;
+		struct sockaddr_in addrCli; // adresse et port du client
 		socklen_t lenAddrCli = sizeof(struct sockaddr_in);
 		int sockCli = accept(sockServ, (struct sockaddr*)&addrCli, &lenAddrCli);
 		if(sockCli == -1) {
@@ -87,13 +104,15 @@ int main(int argc, char const *argv[]) {
 		}
 
 		struct sockaddr_in addrCli2;
-		memcpy(&addrCli2,&addrCli,lenAddrCli);
+		memcpy(&addrCli2,&addrCli,lenAddrCli); // copie de l'adresse du client pour modification
 
 		// ****************
 		// * RECV FICHIER *
 		// ****************
 
-		// recv du port
+		// on recupere les informations de connection du client ainsi que sa list de fichiers
+
+		// recv du port d'ecoute du client pour les autres pairs
 		short port = 0;
 		int testRecv = recv(sockCli, &port, sizeof(short), 0);
 		if(testRecv == -1) {
@@ -101,13 +120,15 @@ int main(int argc, char const *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 		char str[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET,&addrCli.sin_addr,str,INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET,&addrCli.sin_addr,str,INET6_ADDRSTRLEN); // recuperation de l'adresse du client pour affichage
 		printf("Le client sera contacté avec %s:%d \n",str,port);
 		addrCli2.sin_port = port;
-		// recv du nombre de fichier
-		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){
+
+		if(nbPair<nbMaxPair && newPair(pData,nbPair,&addrCli2)==1){ // si le client est nouveau et si il reste de la place
 			nbPair++;
-			memcpy(&pData[lastFreeId].pair,&addrCli2,lenAddrCli);
+			memcpy(&pData[lastFreeId].pair,&addrCli2,lenAddrCli); // enregistrement des données du client
+
+			// recv du nombre de fichier du client
 			testRecv = recv(sockCli, &pData[lastFreeId].nbFile, sizeof(int), 0);
 			if(testRecv == -1) {
 				perror("recv()");
@@ -115,9 +136,10 @@ int main(int argc, char const *argv[]) {
 			}
 			printf("Le client a %d fichiers\n", pData[lastFreeId].nbFile);
 
+			// allocation dynamique du tableau de nom de fichier
 			pData[lastFreeId].fileList = (char**)malloc(pData[lastFreeId].nbFile * sizeof(char*));
 
-			// for chaque fichier
+			// pour chaque fichier
 			for(int i = 0; i < pData[lastFreeId].nbFile; i++) {
 				// recv la taille du nom
 				int nameSize = 0;
@@ -126,12 +148,11 @@ int main(int argc, char const *argv[]) {
 					perror("recv()");
 					exit(EXIT_FAILURE);
 				}
-				// printf("done\n");
-				
 
+				// allocation dynamique du char du nom du fichier
 				pData[lastFreeId].fileList[i] = (char*)malloc(nameSize * sizeof(char));
 
-				// recv nom
+				// recv des fichier
 				testRecv = myLoopReceiv(sockCli, pData[lastFreeId].fileList[i], nameSize, 0);
 				if(testRecv == -1) {
 					perror("recv()");
@@ -147,7 +168,9 @@ int main(int argc, char const *argv[]) {
 		// * SEND FICHIER *
 		// ****************
 
-		// send nb client
+		// maintenant on renvoie l'annuaire mis a jour
+
+		// send nombre de client
 		int testSend;
 		testSend = send(sockCli, &nbPair, sizeof(int), 0);
 
@@ -156,27 +179,24 @@ int main(int argc, char const *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-
 		// pour chaque client enregistrer
 		for(int i = 0; i < nbPair; i++) {
-			// send sockaddr_in
+			// send sockaddr_in avec le port d'ecoute du client i (et non le port utiliser pour se connecter a l'annuaire
 			testSend = send(sockCli, &pData[i].pair, sizeof(struct sockaddr_in), 0);
 			if(testSend == -1) {
 				perror("send()");
 				exit(EXIT_FAILURE);
 			}
 			printf("nombre de fichier à send au client : %d\n", pData[i].nbFile);
-			// send nb fichier
+			// send nombre de fichier du client i
 			int testSend = send(sockCli, &pData[i].nbFile, sizeof(int), 0);
 			if(testSend == -1) {
 				perror("send()");
 				exit(EXIT_FAILURE);
 			}
 
-			
 			// pour chaque fichier
 			for(int j = 0; j < pData[i].nbFile; j++) {
-				// send taille du nom
 				int nameSize = strlen(pData[i].fileList[j])+1;
 				testSend = mySendString(sockCli, pData[i].fileList[j], nameSize, 0);
 				if(testSend <0){
@@ -190,7 +210,7 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	//Code mort ---> 
+	//Code mort --->
 	printf("Fermeture de la socket serveur.....");
 	int testCloseServ = close(sockServ);
 	if(testCloseServ == -1) {

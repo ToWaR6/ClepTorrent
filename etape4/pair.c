@@ -42,9 +42,9 @@ struct paramsThreadClient{
 struct paramsThreadSendFile{
 	int nbFiles;
 	pthread_mutex_t* tabMutex;
-	char** fileList;
 	char rsc[256];
 	int dSClient;
+	char fileList[][256];
 
 };
 
@@ -524,9 +524,9 @@ int main(int argc, char const *argv[]) {
 	struct paramsThreadSendFile paramsSendFile;
 	paramsSendFile.nbFiles = cptFiles;
 	paramsSendFile.tabMutex = tabMutex;
-	paramsSendFile.fileList = (char**)malloc(cptFiles * sizeof(char[256]));
+	//memcpy(paramsSendFile.fileList,fileList,sizeof(fileList));
 	for (int i = 0; i < cptFiles; i++) {
-		strcpy(paramsSendFile.fileList[i], fileList[i]);
+		strcpy(paramsSendFile.fileList[i],fileList[i]);
 	}
 	strcpy(paramsSendFile.rsc,argv[4]);
 	// end

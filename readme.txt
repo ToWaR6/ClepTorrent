@@ -76,7 +76,7 @@ Remarque :
 
 4) Le programme affichera la marche a suivre
 
-En plus de l'étape précédente, les pairs peuvent échanger des fichiers lorsqu'ils sont connectés entre eux.
+En plus de l'étape précédente, les pairs peuvent échanger des fichiers lorsqu'ils sont connectés entre eux en parallele.
 
 Remarque :
 	- Les dossiers sources et destinations sont a passer en parametre
@@ -97,13 +97,13 @@ Remarque :
 	Exemple : ./annuaire.out 1234 3
 
 3) Lancer un pair :
-	./pair.out <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossier Source> <dossier Destination>
-	Exemple : ./pair.out localhost 1234 5678 rsc1 rsc1
-		  ./pair.out localhost 1234 8765 rsc2 rsc2
+	./pair.out <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossier Source> <dossier Destination> <nb Max Parallele>
+	Exemple : ./pair.out localhost 1234 5678 rsc1 rsc1 3
+		  ./pair.out localhost 1234 8765 rsc2 rsc2 4
 
 4) Le programme affichera la marche a suivre
 
 Les utilisateurs peuvent maintenant envoyer plusieurs fichiers en même temps à plusieurs pairs différents.
 
 Remarque :
-	-
+	- La socket n'est pas fermer, il se peut donc que le server affiche 'bind(): adresse already use' relancer donc tout annuaire et pair

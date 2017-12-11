@@ -24,74 +24,70 @@ fichiers disponibles sur chaque pair distant,
 */
 
 
+// structure pour stocker les informations de connexion d'un client
 struct pairData {
-	struct sockaddr_in pairs;
-	int nbFiles;
-	char** fileList;
+	struct sockaddr_in pairs; // adresse et port du pair
+	int nbFiles; // nombre de fichier qu'il possède
+	char** fileList; // liste des nom de fichier
 };
 
+// structure pour les parametres passe au thread "client"
 struct paramsThreadClient{
-	int port;
-	struct sockaddr_in *sockAddr;
-	char dest[256];
-	int nbPair;
-	struct pairData* tabClient;
-
+	int port; // port d'ecoute du serveur annuaire
+	struct sockaddr_in *sockAddr; // adresse du serveur annuaire
+	char dest[256]; // chemin de destination des fichier telecharger
+	int nbPair; // nombre de pairs connectes
+	struct pairData* tabClient; // tableau de donnees de tous les pairs connectes
 };
 
+// structure pour les parametres passe au thread d'envoi de fichier
 struct paramsThreadSendFile{
-	int nbFiles;
-	pthread_mutex_t* tabMutex;
-	char rsc[256];
-	int dSClient;
-	char **fileList;
-
+	int nbFiles; // nombre de fichier et de mutex du client
+	pthread_mutex_t* tabMutex; // tableau de mutex (1 pour chaque fichier)
+	char rsc[256]; // chemin du dossier de ressource
+	int dSClient; // descripteur de socket où envoyer les fichiers
+	char **fileList; // liste des fichiers que le client possède
 };
 
+// structure pour les parametres passe au thread "serveur"
 struct paramsThreadServer{
-	int port;
-	struct paramsThreadSendFile paramsSendFile;
+	int port; // port d'écoute du thread server
+	struct paramsThreadSendFile paramsSendFile; // parametre du thread d'envoi de fichier
 };
-/*Boucle de reception annuaire 
-	Je vais recevoir x clients
-	Je créer un tableau de la structure de taille pair_data de taille x
-	Je boucle sur x
-		Je reçois y le nombre de fichier du client x(n)
-		Je reçois sock_x(n) la socket du client x_(n) que je stocke
-		Je crée un tableau de fileList de taille y 
-		Je boucle sur y
-			Je reçois la t taille du nom de fichier
-			Je le stocke à l'index y(n) de taille t
-*/
 
-//probleme ferme plus "ds" en cas d'erreur 
+// Thread d'envoi de fichier
 void *sendFileThread(void* arg) {
 	struct paramsThreadSendFile* ps  = (struct paramsThreadSendFile*) arg;
-	int dSClient = ps->dSClient;
+	int dSClient = ps->dSClient; 
 
 
-	char pathFichier[256];
-	strcpy(pathFichier,ps->rsc);
+	char pathFichier[256]; // chemin du fichier à envoyer (seulement dossier)
+	strcpy(pathFichier,ps->rsc); 
 	struct stat st;
 	int sizeName, tailleF;
 
+	// reception de la taille du nom du fichier
 	if (recv(dSClient, &sizeName, sizeof(int), 0) < 0) {
 		perror("recv() taille");
 		close(dSClient);
 		pthread_exit(NULL);
 	}
-	char nomFichier[sizeName];
+
+	char nomFichier[sizeName]; // nom du fichier
+	// reception du nom du fichier
 	if (myLoopReceiv(dSClient, nomFichier, sizeName, 0) < 0) {
 		perror("name_recv()");
 		close(dSClient);
 		pthread_exit(NULL);
 	}
 
+	// si le chemin ne se termine pas par '/' le rajouter
 	if (pathFichier[strlen(pathFichier)-1] != '/') {
 		strcat(pathFichier, "/");
 	}
 	strcat(pathFichier, nomFichier);
 
+	// recherche de l'index du fichier dans la liste des fichiers de l'utilisateur
 	int indexMutex;
 	for (int i = 0; i < ps->nbFiles; i++) {
 		printf("ps->fileList[i] : %s\n", ps->fileList[i]);
@@ -101,15 +97,16 @@ void *sendFileThread(void* arg) {
 		}
 	}
 
+	// lock mutex correspondant au fichier en demande de téléchargement
 	pthread_mutex_lock(&(ps->tabMutex[indexMutex]));
 
-	FILE* fp = fopen(pathFichier, "r");
+	FILE* fp = fopen(pathFichier, "r"); // ouverture du fichier en lecture
 	if (fp == NULL) {
 		printf("il n'y a pas de fichier '%s'...\n", pathFichier);
 		close(dSClient);
 	} else {
 		if (stat(pathFichier, &st) == 0)
-			tailleF = st.st_size;
+			tailleF = st.st_size; // recuperation de la taille du fichier
 		else{
 			perror("stat() (size)");
 			close(dSClient);
@@ -117,6 +114,7 @@ void *sendFileThread(void* arg) {
 			pthread_exit(NULL);
 		}
 		
+		// envoi du fichier
 		if (mySendFile(dSClient, fp, tailleF, pathFichier, sizeName) < 0) {
 			perror("mySendFile()");
 			close(dSClient);
@@ -132,6 +130,7 @@ void *sendFileThread(void* arg) {
 }
 
 
+// Thread server
 void* serverThread(void* arg) {
 	struct paramsThreadServer* pS  = (struct paramsThreadServer*) arg;
 	struct paramsThreadSendFile pts = pS->paramsSendFile;
@@ -555,8 +554,6 @@ int main(int argc, char const *argv[]) {
 		perror("pthread_create - tListen2");
 		return -1;
 	}
-	// lancer serverThread
-	// arg : argv[3]
 
 	/**Je ne vérifie pas que le serveur se coupe a discuter*/
 	// if(pthread_join(tListen1, NULL)){

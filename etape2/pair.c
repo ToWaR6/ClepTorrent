@@ -210,7 +210,7 @@ void *clientThread(void* arg){
 					pthread_exit(NULL);
 				}
 
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) < 0) {
+				if(connect(sockPair, (struct sockaddr*)&(tabClient[reponse].pairs), sizeof(tabClient[reponse].pairs)) == -1) {
 					// perror("connect()");
 					// pthread_exit(NULL);
 					printf("Connection refusé\n");

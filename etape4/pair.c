@@ -94,7 +94,7 @@ void* serverThread(void* arg) {
 	int dSClient, sizeName, res, tailleF;
 	char nomFichier[256];
 	strcpy(nomFichier,pS->rsc);
-	if (nomFichier[strlen(pS->rsc)] = '/') {
+	if (nomFichier[strlen(pS->rsc)-1] != '/') {
 		// nomFichier[strlen(pS->rsc)] = '/';
 		strcat(nomFichier, "/");
 	}
@@ -163,7 +163,8 @@ void *clientThread(void* arg){
 	char destination[512];
 	strcpy(destination,pT->dest);
 	if (destination[strlen(pT->dest)-1] != '/') {
-		destination[strlen(pT->dest)] = '/';
+		// destination[strlen(pT->dest)] = '/';
+		strcat(destination, "/");
 	}
 	//m-aj variables
 	int sockAnnuaire,res,nbClient,tailleNom;
@@ -267,42 +268,43 @@ void *clientThread(void* arg){
 					perror("socket()");
 					pthread_exit(NULL);
 				}
-				printf("Socket client crée\n");
+				printf("Socket client crée, client %s:%s\n", tabClient[reponse].pairs.sin_addr.s_addr, ntohs(tabClient[reponse].pairs.sin_port));
 
 				printf("Connexion au client.....\n");
-				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse], sizeof(tabClient[reponse])) <= 0) {
+				if(connect(sockPair, (struct sockaddr*)&tabClient[reponse].pairs, sizeof(tabClient[reponse].pairs)) <= 0) {
 					// perror("connect()");
 					// pthread_exit(NULL);
 					printf("Connexion refusé\n");
-				}
-				printf("Client connecté.....\n");
-				res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
-				if(res<0){
-					perror("mySendString");
-					pthread_exit(NULL);
-				}
-				else if (res==0){
-					pthread_exit(NULL);
-				}
+				} else {
+					printf("Client connecté.....\n");
+					res=mySendString(sockPair,nomFichier,strlen(nomFichier)+1,0);
+					if(res<0){
+						perror("mySendString");
+						pthread_exit(NULL);
+					}
+					else if (res==0){
+						pthread_exit(NULL);
+					}
 
-				res = myReceivFile(sockPair,destination);
-				if (res == -1) {
-					perror("ERREUR myReceivFile");
-					close(sockPair);
-					pthread_exit(NULL);
+					res = myReceivFile(sockPair,destination);
+					if (res == -1) {
+						perror("ERREUR myReceivFile");
+						close(sockPair);
+						pthread_exit(NULL);
+					}
+					else if (res ==0){
+						printf("Le pair ne semble pas posséder le fichier... désolé\n");
+					}
+					else{
+						printf("Fichier bien reçu\n");
+					}
+					strcpy(destination,pT->dest);
+					destination[strlen(pT->dest)] = '/';
 				}
-				else if (res ==0){
-					printf("Le pair ne semble pas posséder le fichier... désolé\n");
-				}
-				else{
-					printf("Fichier bien reçu\n");
-				}
-				memset(destination,'\0',512);
-				strcpy(destination,pT->dest);
-				destination[strlen(pT->dest)] = '/';
 			}else{
 				printf("Il n'y a pas autant de client\n");
 			}
+			memset(destination,'\0',512);
 			reponse = 1;
 		}
 	}while(reponse!=2);

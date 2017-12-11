@@ -45,7 +45,7 @@ Remarque :
 3) Lancer un pair :
 	./pair.out <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossier Source>
 	Exemple : ./pair.out localhost 1234 5678 rsc
-			  ./pair.out localhost 1234 8765 rsc2
+		  ./pair.out localhost 1234 8765 rsc2
 
 4) Le programme affichera la marche a suivre
 
@@ -72,7 +72,7 @@ Remarque :
 3) Lancer un pair :
 	./pair.out <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossier Source> <dossier Destination>
 	Exemple : ./pair.out localhost 1234 5678 rsc1 rsc1
-			  ./pair.out localhost 1234 8765 rsc2 rsc2
+		  ./pair.out localhost 1234 8765 rsc2 rsc2
 
 4) Le programme affichera la marche a suivre
 
@@ -99,11 +99,11 @@ Remarque :
 3) Lancer un pair :
 	./pair.out <IP_SERV> <PORT_SERV> <PORT_CLIENT> <dossier Source> <dossier Destination>
 	Exemple : ./pair.out localhost 1234 5678 rsc1 rsc1
-			  ./pair.out localhost 1234 8765 rsc2 rsc2
+		  ./pair.out localhost 1234 8765 rsc2 rsc2
 
 4) Le programme affichera la marche a suivre
 
-
+Les utilisateurs peuvent maintenant envoyer plusieurs fichiers en même temps à plusieurs pairs différents.
 
 Remarque :
 	-
